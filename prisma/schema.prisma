@@ -1,0 +1,97 @@
+model Area {
+  id         Int      @id @default(autoincrement())
+  title      String
+  titleAr    String?
+  campaignId Int?
+  createdAt  DateTime @default(now())
+  // campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  // tasks      Task[]
+}
+
+model activityLog {
+  id         Int      @id @default(autoincrement())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValues  String?
+  newValues  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model leaders {
+  id              Int       @id @default(autoincrement())
+  full_name       String
+  residence       String?
+  phone           String?
+  workplace       String?
+  center_info     String?
+  station_number  String?
+  votes_count     Int       @default(0)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model persons {
+  id              Int       @id @default(autoincrement())
+  leader_name     String
+  full_name       String
+  residence       String?
+  phone           String?
+  workplace       String?
+  center_info     String?
+  station_number  String?
+  votes_count     Int       @default(0)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([leader_name], name: "idx_persons_leader_name")
+  @@index([phone], name: "idx_persons_phone")
+  @@index([station_number], name: "idx_persons_station_number")
+  @@index([created_at], name: "idx_persons_created_at")
+  @@index([leader_name, id], name: "idx_persons_leader_name_id")
+  @@index([phone], name: "phone_idx")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  username  String?
+  phone     String?
+  avatar    String?
+  // Legacy textual role kept temporarily for backward compatibility. Prefer roleId/role relation.
+  role      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  activityLogs activityLog[]
+
+  // New RBAC relation
+  roleId    String?
+  roleRel   Role?    @relation(name: "UserRole", fields: [roleId], references: [id])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  nameAr      String?
+  // Store permissions as JSON string (comma-separated or JSON array)
+  permissions String?
+  createdAt   DateTime @default(now())
+
+  users       User[]   @relation(name: "UserRole")
+}
+
