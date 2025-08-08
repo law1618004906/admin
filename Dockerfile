@@ -5,8 +5,9 @@ FROM node:20-bullseye AS builder
 WORKDIR /app
 
 # Install deps first (better layer caching)
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-RUN npm ci || npm i --legacy-peer-deps
+COPY package.json ./
+# Use a stable install path that doesn't require a lockfile
+RUN npm install --legacy-peer-deps
 
 # Copy source
 COPY . .
