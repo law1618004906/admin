@@ -1,696 +1,660 @@
 'use client';
 
-import React from 'react';
-import { FixedSizeList as List } from 'react-window';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Users, 
   Plus, 
-  Search,
-  Filter,
-  MapPin,
-  Phone,
-  Building,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  ArrowLeft,
+  Search, 
+  Filter, 
+  FileDown, 
+  Users, 
+  Phone, 
+  MapPin, 
+  Building, 
+  Vote,
+  Edit,
   Trash2,
-  Pencil,
-  Save,
-  X,
-  Home,
-  ShieldAlert
+  SortAsc,
+  SortDesc,
+  ArrowUpDown
 } from 'lucide-react';
-import { useInfiniteQuery } from '@tanstack/react-query';
-// استيراد النوع الصحيح من الحزمة الأساسية
-import type { InfiniteData } from '@tanstack/query-core';
-import { usePermissions } from '@/hooks/use-permissions';
+import { toast } from '@/hooks/use-toast';
 
-interface Individual {
-  id: string;
+interface Person {
+  id: number;
+  leader_name: string;
   full_name: string;
-  residence: string;
-  phone: string;
-  workplace: string;
-  center_info: string;
-  station_number: string;
+  residence: string | null;
+  phone: string | null;
+  workplace: string | null;
+  center_info: string | null;
+  station_number: string | null;
   votes_count: number;
-  status: string;
-  leader?: {
-    id: string;
-    full_name: string;
-  };
-  // إضافة حقل اسم القائد النصي لدعم الإرسال
-  leader_name?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// أنواع للفرز
-type SortBy = 'id' | 'votes_count';
-type SortDir = 'asc' | 'desc';
-
-// أنواع قادة للاقتراح
-type LeaderOption = { id: string | number; full_name: string };
-
-// Helpers للعرض الافتراضي
-const showText = (v: any) => {
-  const s = (v ?? '').toString().trim();
-  return s.length ? s : 'لايوجد';
-};
-
-// Debounce helper بسيط
-function useDebounced<T>(value: T, delay = 400) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
+interface Leader {
+  id: number;
+  full_name: string;
+  residence: string | null;
+  phone: string | null;
+  workplace: string | null;
+  center_info: string | null;
+  station_number: string | null;
+  votes_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
-// إبراز النص المطابق للبحث داخل البطاقات
-function highlight(text: string | number | null | undefined, q: string | undefined): React.ReactNode {
-  const value = (text ?? '').toString();
-  if (!q || !q.trim()) return value;
-  try {
-    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escaped, 'gi');
-    const parts = value.split(regex);
-    const matches = value.match(regex);
-    if (!matches) return value;
-    const out: React.ReactNode[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      out.push(parts[i]);
-      if (i < parts.length - 1) {
-        const m = matches[i];
-        out.push(
-          <mark
-            key={`hl-${i}-${m}-${parts[i].length}`}
-            style={{
-              background: '#fff3b0',
-              borderRadius: 4,
-              padding: '0 2px'
-            }}
-          >
-            {m}
-          </mark>
-        );
+type SortField = 'id' | 'votes_count';
+type SortOrder = 'asc' | 'desc';
+
+const IndividualsPage = () => {
+  const [persons, setPersons] = useState<Person[]>([]);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLeader, setSelectedLeader] = useState<string>('all');
+  const [leaderSearchTerm, setLeaderSearchTerm] = useState('');
+  const [selectedStation, setSelectedStation] = useState<string>('all');
+  const [sortField, setSortField] = useState<SortField>('id');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // Edit/Add person modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Person | null>(null);
+  const [editForm, setEditForm] = useState({
+    leader_name: '',
+    full_name: '',
+    residence: '',
+    phone: '',
+    workplace: '',
+    center_info: '',
+    station_number: '',
+    votes_count: 0
+  });
+
+  // Fetch data
+  const fetchPersons = async () => {
+    try {
+      const response = await fetch('/api/individuals');
+      if (response.ok) {
+        const data = await response.json();
+        setPersons(data);
       }
+    } catch (error) {
+      console.error('Error fetching persons:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحميل بيانات الأفراد",
+        variant: "destructive",
+      });
     }
-    return <>{out}</>;
-  } catch {
-    return value;
-  }
-}
-// مكوّن سكيليتون بسيط لمرحلة التحميل الأولي
-function SkeletonGrid({ rows = 3, cols = 3 }: { rows?: number; cols?: number }) {
-  const items = Array.from({ length: rows * cols });
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 12 }}>
-      {items.map((_, i) => (
-        <div
-          key={i}
-          style={{
-            height: 170,
-            borderRadius: 8,
-            border: '1px solid #eee',
-            background:
-              'linear-gradient(90deg, rgba(240,240,240,0.6) 25%, rgba(230,230,230,0.6) 37%, rgba(240,240,240,0.6) 63%)',
-            backgroundSize: '400% 100%',
-            animation: 'shimmer 1.4s ease infinite'
-          }}
-        />
-      ))}
-      <style jsx>{`
-        @keyframes shimmer {
-          0% {
-            background-position: 100% 0;
-          }
-          100% {
-            background-position: -100% 0;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
+  };
 
-// Déclaration type RowItemData
-type RowItemData = { rows: any[][]; q: string; columns: number };
+  const fetchLeaders = async () => {
+    try {
+      const response = await fetch('/api/leaders');
+      if (response.ok) {
+        const data = await response.json();
+        setLeaders(data);
+      }
+    } catch (error) {
+      console.error('Error fetching leaders:', error);
+    }
+  };
 
-// ملاحظة: سيجري تعريف RowRenderer لاحقًا خلال useCallback داخل المكوّن لتجنّب الاعتماد الخارجي.
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchPersons(), fetchLeaders()]);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
 
-// ص Flake JSON منخفض المستوى
-async function fetchJson(input: RequestInfo, init?: RequestInit) {
-  const res = await fetch(input, init);
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status}`);
-  }
-  return res.json();
-}
+  // Filter and sort persons
+  const filteredAndSortedPersons = useMemo(() => {
+    let filtered = persons.filter(person => {
+      const matchesSearch = 
+        person.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        person.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        person.workplace?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesLeader = selectedLeader === 'all' || person.leader_name === selectedLeader;
+      const matchesStation = selectedStation === 'all' || person.station_number === selectedStation;
+      
+      return matchesSearch && matchesLeader && matchesStation;
+    });
 
-export default function IndividualsPage() {
-  // أضف الحالات выше المكوّن (بعد بداية المكوّن مباشرة وقبل أي JSX)
-  // إذا كانت معرفة مسبقًا، لا تكرّرها. لكن بما أن TypeScript يشتكي من عدم وجودها، نعرّفها هنا:
-  const [q, setQ] = React.useState<string>("");
-  const [leaderName, setLeaderName] = React.useState<string>("");
-  // ن Mistress stationNumber كسلسلة نقطة
-  const [stationNumber, setStationNumber] = React.useState<string>("");
-  const [pageSize, setPageSize] = React.useState<number>(50);
-  // قيم الفرز الافتراضية كما بالمطلوب
-  const [sortBy, setSortBy] = React.useState<"id" | "votes_count">("id");
-  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+    // Sort
+    filtered.sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
 
-  // Debug Panel مخفية افتراضياً
-  const [showDebug, setShowDebug] = React.useState(false);
+    return filtered;
+  }, [persons, searchTerm, selectedLeader, selectedStation, sortField, sortOrder]);
 
-  // حالة الانشغال Lربط disabled على عناصر التحكم
-  // (تم نقل تعريف isBusy بعد useInfiniteQuery)
-
-  // حماية الصفحة عبر التحقق من الجلسة والصلاحيات
-  const { loading, isAuthenticated } = useAuth();
-  const { has, loading: permsLoading } = usePermissions();
-  const router = useRouter();
-
-  React.useEffect(() => {
-    if (!loading && !isAuthenticated) router.replace('/login');
-  }, [loading, isAuthenticated, router]);
-
-  if (loading || permsLoading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="h-10 w-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
+  // Filter leaders for dropdown
+  const filteredLeaders = useMemo(() => {
+    return leaders.filter(leader => 
+      leader.full_name.toLowerCase().includes(leaderSearchTerm.toLowerCase())
     );
-  }
+  }, [leaders, leaderSearchTerm]);
 
-  if (!isAuthenticated) return null;
+  // Get unique station numbers
+  const uniqueStations = useMemo(() => {
+    const stations = [...new Set(persons.map(p => p.station_number).filter(Boolean))];
+    return stations.sort();
+  }, [persons]);
 
-  const allowed = has('individuals.read');
-  if (!allowed) {
-    return (
-      <div className="max-w-3xl mx-auto p-6">
+  // Handle form operations
+  const openAddModal = () => {
+    setEditingPerson(null);
+    setEditForm({
+      leader_name: '',
+      full_name: '',
+      residence: '',
+      phone: '',
+      workplace: '',
+      center_info: '',
+      station_number: '',
+      votes_count: 0
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const openEditModal = (person: Person) => {
+    setEditingPerson(person);
+    setEditForm({
+      leader_name: person.leader_name,
+      full_name: person.full_name,
+      residence: person.residence || '',
+      phone: person.phone || '',
+      workplace: person.workplace || '',
+      center_info: person.center_info || '',
+      station_number: person.station_number || '',
+      votes_count: person.votes_count
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const url = editingPerson ? `/api/individuals/${editingPerson.id}` : '/api/individuals';
+      const method = editingPerson ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "نجح",
+          description: editingPerson ? "تم تحديث الفرد بنجاح" : "تم إضافة الفرد بنجاح",
+        });
+        setIsEditModalOpen(false);
+        fetchPersons();
+      } else {
+        throw new Error('Failed to save person');
+      }
+    } catch (error) {
+      console.error('Error saving person:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ بيانات الفرد",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الفرد؟')) return;
+    
+    try {
+      const response = await fetch(`/api/individuals/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "نجح",
+          description: "تم حذف الفرد بنجاح",
+        });
+        fetchPersons();
+      } else {
+        throw new Error('Failed to delete person');
+      }
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف الفرد",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const csvContent = [
+      ['الرقم', 'اسم القائد', 'الاسم الكامل', 'السكن', 'الهاتف', 'جهة العمل', 'معلومات المركز', 'رقم المحطة', 'عدد الأصوات'],
+      ...filteredAndSortedPersons.map(person => [
+        person.id,
+        person.leader_name,
+        person.full_name,
+        person.residence || '',
+        person.phone || '',
+        person.workplace || '',
+        person.center_info || '',
+        person.station_number || '',
+        person.votes_count
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `individuals_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-6" dir="rtl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">إدارة الأفراد</h1>
+        <p className="text-gray-600">إدارة وعرض بيانات الأفراد والناخبين</p>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 mb-4">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="البحث في الاسم، الهاتف، أو جهة العمل..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+            </div>
+          </div>
+
+          {/* Leader Filter */}
+          <div className="min-w-[200px]">
+            <Select value={selectedLeader} onValueChange={setSelectedLeader}>
+              <SelectTrigger>
+                <SelectValue placeholder="فلترة حسب القائد" />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2">
+                  <Input
+                    placeholder="البحث في القادة..."
+                    value={leaderSearchTerm}
+                    onChange={(e) => setLeaderSearchTerm(e.target.value)}
+                    className="mb-2"
+                  />
+                </div>
+                <SelectItem value="all">جميع القادة</SelectItem>
+                {filteredLeaders.map((leader) => (
+                  <SelectItem key={leader.id} value={leader.full_name}>
+                    {leader.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Station Filter */}
+          <div className="min-w-[150px]">
+            <Select value={selectedStation} onValueChange={setSelectedStation}>
+              <SelectTrigger>
+                <SelectValue placeholder="رقم المحطة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المحطات</SelectItem>
+                {uniqueStations.map((station) => (
+                  <SelectItem key={station} value={station}>
+                    المحطة {station}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة فرد جديد
+          </Button>
+          
+          <Button onClick={exportToCSV} variant="outline">
+            <FileDown className="h-4 w-4 ml-2" />
+            تصدير CSV
+          </Button>
+
+          <Button
+            onClick={() => toggleSort('id')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            ترتيب حسب الرقم
+            {sortField === 'id' && (
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+            )}
+            {sortField !== 'id' && <ArrowUpDown className="h-4 w-4" />}
+          </Button>
+
+          <Button
+            onClick={() => toggleSort('votes_count')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            ترتيب حسب الأصوات
+            {sortField === 'votes_count' && (
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+            )}
+            {sortField !== 'votes_count' && <ArrowUpDown className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
-              <ShieldAlert className="h-5 w-5" /> غير مصرح لك
-            </CardTitle>
-            <CardDescription>لا تملك صلاحية عرض هذه الصفحة (individuals.read).</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/')}>العودة للرئيسية <Home className="h-4 w-4 mr-2" /></Button>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-blue-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{filteredAndSortedPersons.length}</p>
+                <p className="text-gray-600">إجمالي الأفراد</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Vote className="h-8 w-8 text-green-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">
+                  {filteredAndSortedPersons.reduce((sum, person) => sum + person.votes_count, 0)}
+                </p>
+                <p className="text-gray-600">إجمالي الأصوات</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Filter className="h-8 w-8 text-purple-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{persons.length}</p>
+                <p className="text-gray-600">المجموع الكلي</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
-    );
-  }
 
-  // =======================
-  // قائمة القادة (dropdown)
-  // =======================
-
-  // معلمات وقيم البحث داخل القائمة المنسدلة
-  const [leadersQ, setLeadersQ] = React.useState<string>("");
-
-  // جلب القادة بتمرير لانهائي
-  type LeadersResp = { data: LeaderOption[]; nextCursor?: string | null; hasNext?: boolean };
-  const leadersQueryKey = React.useMemo(
-    () => ['leaders', { q: leadersQ }],
-    [leadersQ]
-  );
-
-  const fetchLeaders = React.useCallback(async ({ pageParam }: { pageParam?: string }) => {
-    const sp = new URLSearchParams();
-    if (leadersQ) sp.set('q', leadersQ);
-    if (pageParam) sp.set('cursor', pageParam);
-    // يدعم API الحالي إرجاع [{id, full_name}]؛ سنفرض غلاف data عند الحاجة
-    const url = `/api/leaders?${sp.toString()}`;
-    const res = await fetch(url, { method: 'GET' });
-    if (!res.ok) throw new Error(`Failed to fetch leaders: ${res.status}`);
-    const json = await res.json();
-    // توحيد الشكل إلى { data, nextCursor, hasNext }
-    if (Array.isArray(json)) {
-      return { data: json as LeaderOption[], nextCursor: null, hasNext: false } as LeadersResp;
-    }
-    return json as LeadersResp;
-  }, [leadersQ]);
-
-  const {
-    data: leadersPages,
-    isLoading: isLoadingLeaders,
-    isFetching: isFetchingLeaders,
-    isFetchingNextPage: isFetchingNextLeaders,
-    hasNextPage: leadersHasNext,
-    fetchNextPage: leadersFetchNext,
-    refetch: refetchLeaders,
-  } = useInfiniteQuery<LeadersResp, Error>({
-    queryKey: leadersQueryKey,
-    queryFn: ({ pageParam }) => fetchLeaders({ pageParam: typeof pageParam === 'string' ? pageParam : undefined }),
-    getNextPageParam: (last) => (last?.nextCursor ? last.nextCursor : undefined),
-    initialPageParam: undefined,
-  });
-
-  const leadersFlat: LeaderOption[] = React.useMemo(
-    () => (leadersPages?.pages ?? []).flatMap((p) => p.data ?? []),
-    [leadersPages]
-  );
-
-  // عند التحويم على قائد: نضبط leaderName لعرض أفراده بشكل فوري
-  const handleLeaderHover = (name: string) => {
-    if (isBusy) return;
-    if (name !== leaderName) {
-      setLeaderName(name);
-    }
-  };
-
-  // عند الاختيار بالنقر: نضبط leaderName ونغلق القائمة (إن وُجدت مستقبلاً كمكوّن منفصل)
-  const handleLeaderSelect = (name: string) => {
-    setLeaderName(name);
-  };
-
-  // --- 1) تهيئة الحالات من URL مرة واحدة عند التحميل ---
-  React.useEffect(() => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-
-      const urlQ = sp.get('q') ?? '';
-      const urlLeader = sp.get('leader_name') ?? '';
-      const urlStation = sp.get('station_number') ?? '';
-      const urlPageSizeRaw = sp.get('pageSize');
-      const urlSortByRaw = sp.get('sortBy');
-      const urlSortDirRaw = sp.get('sortDir');
-
-      const urlPageSize = urlPageSizeRaw ? Number(urlPageSizeRaw) : NaN;
-      const urlSortBy = urlSortByRaw === 'id' || urlSortByRaw === 'votes_count' ? urlSortByRaw : 'id';
-      const urlSortDir = urlSortDirRaw === 'asc' || urlSortDirRaw === 'desc' ? urlSortDirRaw : 'desc';
-
-      // حدّث الحالات فقط إذا اختلفت عن القيم الحالية لتفادي إعادة الرندر غير الضروري
-      if (urlQ !== q) setQ(urlQ);
-      if (urlLeader !== leaderName) setLeaderName(urlLeader);
-      if (urlStation !== stationNumber) setStationNumber(urlStation);
-      if (!Number.isNaN(urlPageSize) && urlPageSize !== pageSize) setPageSize(urlPageSize);
-      if (urlSortBy !== sortBy) setSortBy(urlSortBy);
-      if (urlSortDir !== sortDir) setSortDir(urlSortDir);
-    } catch {
-      // تجاهل أي أخطاء parsing للـ URL
-    }
-    // نريد التشغيل مرة واحدة على التحميل؛ لا نضيف الحالات هنا لتفادي loop
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // --- 2) دفع تغييرات الحالات إلى URL بدون إعادة تحميل الصفحة ---
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const sp = new URLSearchParams(window.location.search);
-
-    const setOrDelete = (key: string, value: string) => {
-      if (value && value.length > 0) {
-        sp.set(key, value);
-      } else {
-        sp.delete(key);
-      }
-    };
-
-    setOrDelete('q', q ?? '');
-    setOrDelete('leader_name', leaderName ?? '');
-    setOrDelete('station_number', stationNumber ?? '');
-    // pageSize كلَم نكتبه لثبات السلوك
-    sp.set('pageSize', String(pageSize));
-    sp.set('sortBy', sortBy);
-    sp.set('sortDir', sortDir);
-
-    // لا ي хр basically أي cursor في العنوان عند تغيّر الفلاتر/الفرز حتى لا نظل على صفحة متقدمة
-    sp.delete('cursor');
-
-    const newSearch = sp.toString();
-    const currentSearch = window.location.search.startsWith('?')
-      ? window.location.search.slice(1)
-      : window.location.search;
-
-    if (newSearch !== currentSearch) {
-      const newUrl =
-        window.location.pathname + (newSearch.length ? `?${newSearch}` : '') + window.location.hash;
-      window.history.replaceState(null, '', newUrl);
-    }
-  }, [q, leaderName, stationNumber, pageSize, sortBy, sortDir]);
-
-  // اختيارياً: إعادة جلب البيانات عندما يتغير معلمات البحث المهمة يدوياً (عادة react-query يعيد الجلب بسبب queryKey)
-  React.useEffect(() => {
-    // react-query يعيد الجلب تلقائياً بسبب تغيّر queryKey، هذا للاحتياط إن رغبت باستدعاء refetch صريح
-    // refetch();
-  }, [q, leaderName, stationNumber, pageSize, sortBy, sortDir]);
-
-  // === كتلة الاستعلام يجب أن تكون داخل المكوّن فقط ===
-  type IndividualsPageResp = {
-    data: any[];
-    nextCursor?: string | null;
-    hasNext?: boolean;
-  };
-
-  async function fetchPage({
-    pageParam,
-    q,
-    leaderName,
-    stationNumber,
-    pageSize,
-    sortBy,
-    sortDir,
-  }: {
-    pageParam?: string;
-    q: string;
-    leaderName: string;
-    stationNumber: string;
-    pageSize: number;
-    sortBy: 'id' | 'votes_count';
-    sortDir: 'asc' | 'desc';
-  }): Promise<IndividualsPageResp> {
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (leaderName) params.set('leader_name', leaderName);
-    if (stationNumber) params.set('station_number', stationNumber);
-    params.set('pageSize', String(pageSize));
-    params.set('sortBy', sortBy);
-    params.set('sortDir', sortDir);
-    if (pageParam) params.set('cursor', pageParam);
-
-    const url = `/api/individuals?${params.toString()}`;
-    const res = await fetch(url, { method: 'GET' });
-    if (!res.ok) throw new Error(`Failed to fetch individuals: ${res.status}`);
-    return (await res.json()) as IndividualsPageResp;
-  }
-
-  const queryKey = React.useMemo(
-    () => ['individuals', { q, leaderName, stationNumber, pageSize, sortBy, sortDir }],
-    [q, leaderName, stationNumber, pageSize, sortBy, sortDir]
-  );
-
-  const queryFnTyped = React.useCallback(
-    ({ pageParam }: { pageParam?: unknown }) =>
-      fetchPage({
-        pageParam: typeof pageParam === 'string' ? pageParam : undefined,
-        q: q ?? '',
-        leaderName: leaderName ?? '',
-        stationNumber: stationNumber ?? '',
-        pageSize: Number(pageSize) || 50,
-        sortBy: (sortBy === 'id' || sortBy === 'votes_count' ? sortBy : 'id') as
-          | 'id'
-          | 'votes_count',
-        sortDir: (sortDir === 'asc' || sortDir === 'desc' ? sortDir : 'desc') as 'asc' | 'desc',
-      }),
-    [q, leaderName, stationNumber, pageSize, sortBy, sortDir]
-  );
-
-  const {
-    data: pagesData,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    refetch,
-  } = useInfiniteQuery<IndividualsPageResp, Error>({
-    queryKey,
-    queryFn: queryFnTyped,
-    getNextPageParam: (lastPage) => (lastPage?.nextCursor != null ? lastPage.nextCursor : undefined),
-    initialPageParam: undefined,
-  });
-
-  // تعريف isBusy بعد تو توفير isLoading/isFetching (مرة واحدة)
-  const isBusy = isLoading || isFetching;
-
-  const flatData = pagesData?.pages.flatMap((p) => p.data) ?? [];
-
-  // حالات واجهة العرض
-  const pageSizeOptions = [25, 50, 100, 200];
-
-  // دوال مساعدة للفرز
-  const setSort = (by: 'id' | 'votes_count', dir: 'asc' | 'desc') => {
-    if (isBusy) return;
-    setSortBy(by);
-    setSortDir(dir);
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* العنوان وشريط الأدوات */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold">إدارة الأفراد</h1>
-          <div className="text-xs text-muted-foreground">
-            {isBusy ? 'جارِ التحميل...' : `عدد النتائج الحالية: ${flatData.length}`}
-          </div>
+      {/* Persons Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedPersons.map((person) => (
+            <Card key={person.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                      {person.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      تحت إشراف: {person.leader_name}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    #{person.id}
+                  </Badge>
+                </div>
 
-        {/* فلاتر البحث الأساسية */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <div className="flex flex-col gap-1 md:col-span-2">
-            <Label htmlFor="q">بحث</Label>
-            <Input
-              id="q"
-              placeholder="ابحث بالاسم، الهاتف، جهة العمل..."
-              value={q}
-              disabled={isBusy}
-              onChange={(e) => setQ(e.target.value)}
-              className="bg-background"
-            />
-          </div>
+                <div className="space-y-2 mb-4">
+                  {person.residence && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 ml-2 text-gray-400" />
+                      {person.residence}
+                    </div>
+                  )}
+                  
+                  {person.phone && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Phone className="h-4 w-4 ml-2 text-gray-400" />
+                      {person.phone}
+                    </div>
+                  )}
+                  
+                  {person.workplace && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Building className="h-4 w-4 ml-2 text-gray-400" />
+                      {person.workplace}
+                    </div>
+                  )}
+                </div>
 
-          {/* قائمة منسدلة للقادة مع بحث وتمرير */}
-          <div className="flex flex-col gap-1 md:col-span-2">
-            <Label htmlFor="leaders">القادة</Label>
-            <div className="border rounded bg-card text-card-foreground">
-              {/* حقل بحث داخل القائمة */}
-              <div className="p-2 border-b">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <Vote className="h-4 w-4 ml-1 text-green-600" />
+                    <span className="text-sm font-medium text-green-600">
+                      {person.votes_count} صوت
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditModal(person)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(person.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {person.station_number && (
+                  <div className="mt-3 pt-3 border-t">
+                    <Badge variant="outline" className="text-xs">
+                      المحطة {person.station_number}
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!loading && filteredAndSortedPersons.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد نتائج</h3>
+          <p className="text-gray-600">لم يتم العثور على أفراد مطابقين لمعايير البحث</p>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPerson ? 'تعديل بيانات الفرد' : 'إضافة فرد جديد'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="leader_name">اسم القائد *</Label>
+                <Select
+                  value={editForm.leader_name}
+                  onValueChange={(value) => setEditForm(prev => ({ ...prev, leader_name: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر القائد" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leaders.map((leader) => (
+                      <SelectItem key={leader.id} value={leader.full_name}>
+                        {leader.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="full_name">الاسم الكامل *</Label>
                 <Input
-                  id="leaders"
-                  placeholder="ابحث عن قائد..."
-                  value={leadersQ}
-                  disabled={isFetchingLeaders}
-                  onChange={(e) => setLeadersQ(e.target.value)}
-                  className="bg-background"
+                  id="full_name"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  required
                 />
               </div>
 
-              {/* جسم القائمة مع تمرير، عند التحويم نعرض الأفراد */}
-              <div
-                className="max-h-56 overflow-auto"
-                onScroll={(e) => {
-                  const el = e.currentTarget;
-                  if (leadersHasNext && !isFetchingNextLeaders && el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
-                    leadersFetchNext();
-                  }
-                }}
-              >
-                {isLoadingLeaders && (
-                  <div className="p-3 text-sm text-muted-foreground">جارِ تحميل القادة...</div>
-                )}
-                {!isLoadingLeaders && leadersFlat.length === 0 && (
-                  <div className="p-3 text-sm text-muted-foreground">لا يوجد قادة مطابقة.</div>
-                )}
-                {leadersFlat.map((ldr) => (
-                  <button
-                    key={ldr.id}
-                    type="button"
-                    className={`w-full text-right px-3 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                      leaderName === ldr.full_name ? 'bg-muted' : 'hover:bg-muted'
-                    }`}
-                    onMouseEnter={() => handleLeaderHover(ldr.full_name)}
-                    onClick={() => handleLeaderSelect(ldr.full_name)}
-                  >
-                    {ldr.full_name}
-                  </button>
-                ))}
-                {isFetchingNextLeaders && (
-                  <div className="p-2 text-xs text-muted-foreground text-center">تحميل المزيد...</div>
-                )}
+              <div>
+                <Label htmlFor="residence">السكن</Label>
+                <Input
+                  id="residence"
+                  value={editForm.residence}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, residence: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Input
+                  id="phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="workplace">جهة العمل</Label>
+                <Input
+                  id="workplace"
+                  value={editForm.workplace}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, workplace: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="center_info">معلومات المركز</Label>
+                <Input
+                  id="center_info"
+                  value={editForm.center_info}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, center_info: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="station_number">رقم المحطة</Label>
+                <Input
+                  id="station_number"
+                  value={editForm.station_number}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, station_number: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="votes_count">عدد الأصوات</Label>
+                <Input
+                  id="votes_count"
+                  type="number"
+                  min="0"
+                  value={editForm.votes_count}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, votes_count: parseInt(e.target.value) || 0 }))}
+                />
               </div>
             </div>
 
-            {/* وسم يوضّح القائد الحالي المختار */}
-            {leaderName && (
-              <div className="text-xs text-muted-foreground mt-1">
-                القائد المختار: <span className="font-medium text-foreground">{leaderName}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="station">رقم المحطة</Label>
-            <Input
-              id="station"
-              placeholder="رقم المحطة"
-              value={stationNumber}
-              disabled={isBusy}
-              onChange={(e) => setStationNumber(e.target.value)}
-              className="bg-background"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="pageSize">حجم الصفحة</Label>
-            <select
-              id="pageSize"
-              className="border rounded px-3 py-2 bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              disabled={isBusy}
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-            >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* أدوات الفرز */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">الفرز حسب:</span>
-          <div className="inline-flex overflow-hidden rounded border">
-            <button
-              type="button"
-              className={`px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                sortBy === 'id' ? 'bg-primary text-primary-foreground' : 'bg-background'
-              }`}
-              onClick={() => setSort('id', sortDir)}
-              disabled={isBusy}
-            >
-              المعرّف
-            </button>
-            <button
-              type="button"
-              className={`px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                sortBy === 'votes_count' ? 'bg-primary text-primary-foreground' : 'bg-background'
-              }`}
-              onClick={() => setSort('votes_count', sortDir)}
-              disabled={isBusy}
-            >
-              عدد الأصوات
-            </button>
-          </div>
-
-          <div className="inline-flex overflow-hidden rounded border ms-2">
-            <button
-              type="button"
-              className={`px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                sortDir === 'asc' ? 'bg-primary text-primary-foreground' : 'bg-background'
-              }`}
-              onClick={() => setSort(sortBy, 'asc')}
-              disabled={isBusy}
-            >
-              تصاعدي
-            </button>
-            <button
-              type="button"
-              className={`px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                sortDir === 'desc' ? 'bg-primary text-primary-foreground' : 'bg-background'
-              }`}
-              onClick={() => setSort(sortBy, 'desc')}
-              disabled={isBusy}
-            >
-              تنازلي
-            </button>
-          </div>
-
-          <Button
-            type="button"
-            variant="secondary"
-            className="ms-auto"
-            disabled={isBusy}
-            onClick={() => {
-              setQ('');
-              setLeaderName('');
-              setStationNumber('');
-              setSortBy('id');
-              setSortDir('desc');
-              setPageSize(50);
-            }}
-          >
-            إعادة ضبط
-          </Button>
-        </div>
-      </div>
-
-      {/* شبكة البطاقات */}
-      <div className="border rounded p-3 bg-card/30">
-        {isLoading && (
-          <div className="p-2">
-            <SkeletonGrid rows={2} cols={3} />
-          </div>
-        )}
-
-        {!isLoading && flatData.length === 0 && (
-          <div className="p-6 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة للبحث الحالي.</div>
-        )}
-
-        {!isLoading && flatData.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {flatData.map((row: any) => (
-              <div key={row.id} className="rounded border p-3 bg-card text-card-foreground shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-base">#{row.id}</div>
-                  <div className="text-xs text-muted-foreground">الأصوات: {row.votes_count ?? '-'}</div>
-                </div>
-
-                <div className="mt-2 space-y-1 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">الاسم الكامل: </span>
-                    <span className="font-medium">{showText(row.full_name)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">اسم المسؤول: </span>
-                    <span className="font-medium">{showText(row.leader_name)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">رقم الهاتف: </span>
-                    <span className="font-medium">{showText(row.phone)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">السكن: </span>
-                    <span className="font-medium">{showText(row.residence)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">جهة العمل: </span>
-                    <span className="font-medium">{showText(row.workplace)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">رقم المحطة: </span>
-                    <span className="font-medium">{showText(row.station_number)}</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                  <Button type="button" size="sm" disabled className="opacity-60 cursor-not-allowed">
-                    تعديل
-                  </Button>
-                  <Button type="button" size="sm" variant="destructive" disabled className="opacity-60 cursor-not-allowed">
-                    حذف
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-4 flex justify-center">
-          <Button
-            type="button"
-            disabled={isBusy || !hasNextPage || isFetchingNextPage}
-            onClick={() => fetchNextPage()}
-            className="focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {isFetchingNextPage ? 'جارِ التحميل...' : hasNextPage ? 'تحميل المزيد' : 'لا مزيد من النتائج'}
-          </Button>
-        </div>
-      </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                {editingPerson ? 'تحديث' : 'إضافة'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
+
+export default IndividualsPage;

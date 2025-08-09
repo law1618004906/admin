@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 // استخدم نفس عميل Prisma المشترك في المشروع
 import db from "@/lib/db";
+import { cache } from "@/lib/cache";
 
 // محول عميق لتحويل BigInt إلى Number قبل الإرجاع (نفس النهج المستخدم سابقاً)
 function toPlainNumber(value: unknown): any {
@@ -17,6 +18,15 @@ function toPlainNumber(value: unknown): any {
 }
 
 export async function GET() {
+  const cacheKey = 'dashboard-stats';
+  
+  // التحقق من وجود البيانات في الكاش
+  const cachedData = cache.get(cacheKey);
+  if (cachedData) {
+    console.log('[/api/dashboard/stats] returning cached data');
+    return NextResponse.json(cachedData, { status: 200 });
+  }
+
   try {
     // COUNT(*) من leaders
     const totalLeaders = await db.leaders.count();
@@ -65,14 +75,17 @@ export async function GET() {
       leadersDistribution,
     };
 
+    const result = toPlainNumber(payload);
+    
+    // حفظ في الكاش لمدة 2 دقيقة
+    cache.set(cacheKey, result, 2 * 60 * 1000);
+
     if (process.env.NODE_ENV !== "production") {
-      //eslint-disable-next-line no-console
       console.log("[/api/dashboard/stats] payload:", payload);
     }
 
-    return NextResponse.json(toPlainNumber(payload), { status: 200 });
+    return NextResponse.json(result, { status: 200 });
   } catch (err) {
-    //eslint-disable-next-line no-console
     console.error("[/api/dashboard/stats] error:", err);
     return NextResponse.json(
       { error: "Failed to compute dashboard stats" },

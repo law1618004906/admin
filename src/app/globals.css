@@ -238,3 +238,48 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* إصلاحات إضافية للتخطيط */
+@layer utilities {
+  .z-sidebar { z-index: 10; }
+  .z-header { z-index: 20; }
+  .z-dropdown { z-index: 30; }
+  .z-modal { z-index: 40; }
+  .z-toast { z-index: 50; }
+  .z-tooltip { z-index: 60; }
+}
+
+/* إصلاح الشريط الجانبي للجهة اليمنى في RTL */
+[data-side="right"] + [data-slot="sidebar-inset"] {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+@media (min-width: 768px) {
+  [data-side="right"][data-variant="inset"] + [data-slot="sidebar-inset"] {
+    margin-right: 0.5rem !important;
+    margin-left: 0.5rem !important;
+  }
+  
+  [data-side="right"][data-variant="inset"][data-state="collapsed"] + [data-slot="sidebar-inset"] {
+    margin-right: 0.5rem !important;
+  }
+}
+
+/* إصلاح التداخل للقوائم المنسدلة */
+[data-radix-popper-content-wrapper] {
+  z-index: 30 !important;
+}
+
+[data-radix-portal] > * {
+  z-index: 40 !important;
+}
+
+/* تحسين تجربة المستخدم */
+.sidebar-transition {
+  transition: all 0.2s ease-in-out;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}

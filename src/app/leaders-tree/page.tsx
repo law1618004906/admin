@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, User, ChevronDown, ChevronRight, Home } from 'lucide-react';
@@ -16,20 +14,14 @@ type TreeNode = {
 };
 
 export default function LeadersTreePage() {
-  const { user, loading, isAuthenticated } = useAuth();
-  const router = useRouter();
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) router.push('/login');
-  }, [loading, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (isAuthenticated) fetchTree();
-  }, [isAuthenticated]);
+    fetchTree();
+  }, []);
 
   const fetchTree = async () => {
     try {
@@ -59,7 +51,7 @@ export default function LeadersTreePage() {
     [tree, selectedLeaderId]
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
@@ -86,7 +78,7 @@ export default function LeadersTreePage() {
             <div className="flex items-center space-x-2 space-x-reverse">
               <Button
                 variant="outline"
-                onClick={() => router.push('/')}
+                onClick={() => window.location.href = '/'}
                 className="border-white/15 bg-white/10 backdrop-blur-lg text-white hover:bg-white/15 rounded-xl"
               >
                 <Home className="h-4 w-4 mr-2 text-white" />

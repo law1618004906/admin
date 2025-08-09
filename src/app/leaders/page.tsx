@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
-import { withCsrf } from '@/lib/csrf-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +21,11 @@ import {
   Phone,
   Building,
   Vote,
-  Users2
+  Users2,
+  FileDown,
+  SortAsc,
+  SortDesc,
+  ArrowUpDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { toast } from '@/hooks/use-toast';
 
 type LeaderItem = {
   id: number;
@@ -41,793 +43,581 @@ type LeaderItem = {
   workplace: string | null;
   center_info: string | null;
   station_number: string | null;
-  votes_count: number | null;
+  votes_count: number;
   created_at: string;
   updated_at: string;
   _count?: {
     individuals?: number;
   };
   totalIndividualsVotes?: number;
-  individualsPreview?: string[];
 };
 
-type LeadersApiResponse = {
-  success: boolean;
-  data: LeaderItem[];
-  total?: number;
-};
+type SortField = 'id' | 'votes_count' | 'full_name';
+type SortOrder = 'asc' | 'desc';
 
-// تعريف نوع الأفراد المستخدم في الشجرة
-type PersonNode = {
-  id: number;
-  leader_name: string | null;
-  full_name: string;
-  residence: string | null;
-  phone: string | null;
-  workplace: string | null;
-  center_info: string | null;
-  station_number: string | null;
-  votes_count: number | null;
-  created_at: string;
-  updated_at?: string;
-};
+const LeadersPage = () => {
+  const [leaders, setLeaders] = useState<LeaderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<SortField>('id');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // Edit/Add leader modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingLeader, setEditingLeader] = useState<LeaderItem | null>(null);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    residence: '',
+    phone: '',
+    workplace: '',
+    center_info: '',
+    station_number: '',
+    votes_count: 0
+  });
 
-// أدوات بسيطة لاستدعاءات CRUD على الأفراد
-async function apiUpdatePerson(
-  id: number,
-  body: Partial<{
-    leader_name: string;
-    full_name: string;
-    votes_count: number;
-    residence: string;
-    phone: string;
-    workplace: string;
-    center_info: string;
-    station_number: string;
-  }>
-) {
-  const res = await fetch(
-    '/api/individuals',
-    withCsrf({
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id, ...body }),
-    })
-  );
-  if (!res.ok) throw new Error(`PATCH /api/individuals failed: ${res.status}`);
-  return res.json();
-}
-
-async function apiDeletePerson(id: number) {
-  const res = await fetch(
-    '/api/individuals',
-    withCsrf({
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id }),
-    })
-  );
-  if (!res.ok) throw new Error(`DELETE /api/individuals failed: ${res.status}`);
-  return res.json();
-}
-
-async function apiCreatePerson(payload: {
-  leader_name: string;
-  full_name: string;
-  votes_count?: number;
-  residence?: string;
-  phone?: string;
-  workplace?: string;
-  center_info?: string;
-  station_number?: string;
-}) {
-  const res = await fetch(
-    '/api/individuals',
-    withCsrf({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    })
-  );
-  if (!res.ok) throw new Error(`POST /api/individuals failed: ${res.status}`);
-  return res.json();
-}
-
-function Backdrop({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 bg-black/60 z-40"
-      onClick={onClose}
-      aria-label="close modal"
-    />
-  );
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-  maxWidth = 'max-w-3xl',
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-  maxWidth?: string;
-}) {
-  // منع تمرير الخلفية WHEN PRESSED ESCAPE
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
+  // Fetch leaders data
+  const fetchLeaders = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/leaders');
+      if (response.ok) {
+        const data = await response.json();
+        setLeaders(data);
+      } else {
+        throw new Error('Failed to fetch leaders');
       }
-    };
-    document.addEventListener('keydown', fn);
-    return () => {
-      document.removeEventListener('keydown', fn);
-    };
-  }, [onClose]);
+    } catch (error) {
+      console.error('Error fetching leaders:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحميل بيانات القادة",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // منع تمرير الخلفية عند فتح المودال وإعادته عند الإغلاق
   useEffect(() => {
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden'; // يمنع تمرير الخلفية
-    return () => {
-      document.body.style.overflow = original; // يعيد الوضع السابق
-    };
+    fetchLeaders();
   }, []);
 
-  return (
-    <>
-      <Backdrop onClose={onClose} />
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4`}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className={`w-full ${maxWidth} rounded-lg border border-gray-700 bg-gray-900 shadow-xl`}>
-          <div className="flex items-center justify-between border-b border-gray-700 p-4">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-md px-3 py-1 text-sm bg-gray-800 text-gray-200 hover:bg-gray-700"
-            >
-              إغلاق
-            </button>
-          </div>
-          {/* نMakeRange محتوى المودال قابل للتمرير بداخل المودال فقط */}
-          <div className="p-4 max-h-[70vh] overflow-y-auto">{children}</div>
-        </div>
-      </div>
-    </>
-  );
-}
+  // Filter and sort leaders
+  const filteredAndSortedLeaders = useMemo(() => {
+    let filtered = leaders.filter(leader =>
+      leader.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leader.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leader.workplace?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leader.residence?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-// دالة مساعدة لعرض النص مع Fallback "لايوجد"
-const showText = (v?: string | number | null) => {
-  if (v === null || v === undefined) return 'لايوجد';
-  const t = typeof v;
-  if (t === 'string' || t === 'number' || t === 'bigint' || t === 'boolean') return String(v);
-  // لو وصل كائن/مصفوفة بطريق الخطأ، لا نمرره كابن React بل نحوّله إلى نص آمن
-  try { return JSON.stringify(v); } catch { return 'لايوجد'; }
-};
-
-// شجرة العلاقات البسيطة: قائد -> قائمة أفراده (الأحدث أولاً)
-function RelationTree({
-  leaderName,
-  persons,
-  onRefresh,
-}: {
-  leaderName: string;
-  persons: PersonNode[];
-  onRefresh: () => void;
-}) {
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState<{
-    leader_name: string;
-    full_name: string;
-    votes_count: string;
-    residence: string;
-    phone: string;
-    workplace: string;
-    center_info: string;
-    station_number: string;
-  }>({
-    leader_name: leaderName,
-    full_name: '',
-    votes_count: '0',
-    residence: '',
-    phone: '',
-    workplace: '',
-    center_info: '',
-    station_number: '',
-  });
-  const [busyId, setBusyId] = useState<number | 'create' | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // نموذج الإضافة
-  const [newData, setNewData] = useState<{
-    full_name: string;
-    votes_count: string;
-    residence: string;
-    phone: string;
-    workplace: string;
-    center_info: string;
-    station_number: string;
-  }>({
-    full_name: '',
-    votes_count: '0',
-    residence: '',
-    phone: '',
-    workplace: '',
-    center_info: '',
-    station_number: '',
-  });
-
-  const totalVotes = useMemo(
-    () =>
-      persons.reduce((acc, p) => acc + (typeof p.votes_count === 'number' ? p.votes_count : 0), 0),
-    [persons]
-  );
-
-  const beginEdit = (p: PersonNode) => {
-    setEditingId(p.id);
-    setEditData({
-      leader_name: leaderName, // ثبّت اسم القائد من سياق المودال
-      full_name: p.full_name,
-      votes_count: String(p.votes_count ?? 0),
-      residence: p.residence ?? '',
-      phone: p.phone ?? '',
-      workplace: p.workplace ?? '',
-      center_info: p.center_info ?? '',
-      station_number: p.station_number ?? '',
+    // Sort
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+      
+      if (sortField === 'full_name') {
+        aValue = aValue?.toLowerCase() || '';
+        bValue = bValue?.toLowerCase() || '';
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
     });
-    setError(null);
+
+    return filtered;
+  }, [leaders, searchTerm, sortField, sortOrder]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalVotes = leaders.reduce((sum, leader) => sum + (leader.votes_count || 0), 0);
+    const totalIndividualsVotes = leaders.reduce((sum, leader) => sum + (leader.totalIndividualsVotes || 0), 0);
+    const totalIndividuals = leaders.reduce((sum, leader) => sum + (leader._count?.individuals || 0), 0);
+    
+    return {
+      totalLeaders: leaders.length,
+      totalVotes,
+      totalIndividualsVotes,
+      totalIndividuals,
+      grandTotal: totalVotes + totalIndividualsVotes
+    };
+  }, [leaders]);
+
+  // Handle form operations
+  const openAddModal = () => {
+    setEditingLeader(null);
+    setEditForm({
+      full_name: '',
+      residence: '',
+      phone: '',
+      workplace: '',
+      center_info: '',
+      station_number: '',
+      votes_count: 0
+    });
+    setIsEditModalOpen(true);
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setError(null);
+  const openEditModal = (leader: LeaderItem) => {
+    setEditingLeader(leader);
+    setEditForm({
+      full_name: leader.full_name,
+      residence: leader.residence || '',
+      phone: leader.phone || '',
+      workplace: leader.workplace || '',
+      center_info: leader.center_info || '',
+      station_number: leader.station_number || '',
+      votes_count: leader.votes_count || 0
+    });
+    setIsEditModalOpen(true);
   };
 
-  const saveEdit = async (id: number) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      setBusyId(id);
-      setError(null);
-      const votes = Number.isFinite(Number(editData.votes_count)) ? Number(editData.votes_count) : 0;
-      await apiUpdatePerson(id, {
-        leader_name: leaderName, // إرسال اسم القائد من السياق دائماً
-        full_name: editData.full_name.trim(),
-        votes_count: votes,
-        residence: editData.residence || null as any,
-        phone: editData.phone || null as any,
-        workplace: editData.workplace || null as any,
-        center_info: editData.center_info || null as any,
-        station_number: editData.station_number || null as any,
+      const url = editingLeader ? `/api/leaders/${editingLeader.id}` : '/api/leaders';
+      const method = editingLeader ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
       });
-      cancelEdit();
-      onRefresh();
-    } catch (e: any) {
-      setError(e?.message ?? 'فشل التعديل');
-    } finally {
-      setBusyId(null);
-    }
-  };
 
-  const deletePerson = async (id: number) => {
-    if (!confirm('تأكيد حذف الفرد؟')) return;
-    try {
-      setBusyId(id);
-      setError(null);
-      await apiDeletePerson(id);
-      onRefresh();
-    } catch (e: any) {
-      setError(e?.message ?? 'فشل الحذف');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const createPerson = async () => {
-    try {
-      setBusyId('create');
-      setError(null);
-      const payload = {
-        leader_name: leaderName, // ربط تلقائي بالقائد
-        full_name: newData.full_name.trim(),
-        votes_count: Number.isFinite(Number(newData.votes_count)) ? Number(newData.votes_count) : 0,
-        residence: newData.residence || undefined,
-        phone: newData.phone || undefined,
-        workplace: newData.workplace || undefined,
-        center_info: newData.center_info || undefined,
-        station_number: newData.station_number || undefined,
-      };
-      if (!payload.full_name) throw new Error('الاسم الكامل مطلوب');
-      await apiCreatePerson(payload);
-      setNewData({
-        full_name: '',
-        votes_count: '0',
-        residence: '',
-        phone: '',
-        workplace: '',
-        center_info: '',
-        station_number: '',
-      });
-      onRefresh();
-    } catch (e: any) {
-      setError(e?.message ?? 'فشل الإضافة');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {error ? <div className="text-sm text-red-400">{error}</div> : null}
-
-      <div className="text-sm text-gray-300">
-        شجرة العلاقات للقائد: <span className="text-white font-semibold">{leaderName}</span>
-      </div>
-
-      {/* إضافة فرد جديد لهذا القائد (جدول مبسّط بالحقول الثمانية) */}
-      <div className="rounded-md bg-gray-800 p-3 space-y-3">
-        <div className="text-sm text-gray-300 mb-2">إضافة فرد جديد لهذا القائد</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs text-gray-400 mb-1">الاسم الكامل</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              placeholder="الاسم الكامل"
-              value={newData.full_name}
-              onChange={(e) => setNewData((s) => ({ ...s, full_name: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">عدد الأصوات</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              placeholder="0"
-              value={newData.votes_count}
-              onChange={(e) => setNewData((s) => ({ ...s, votes_count: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">السكن</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              value={newData.residence}
-              onChange={(e) => setNewData((s) => ({ ...s, residence: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">الهاتف</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              value={newData.phone}
-              onChange={(e) => setNewData((s) => ({ ...s, phone: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">جهة العمل</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              value={newData.workplace}
-              onChange={(e) => setNewData((s) => ({ ...s, workplace: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">معلومات المركز</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              value={newData.center_info}
-              onChange={(e) => setNewData((s) => ({ ...s, center_info: e.target.value }))}
-            />
-          </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-1">رقم المحطة</div>
-            <input
-              className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-              value={newData.station_number}
-              onChange={(e) => setNewData((s) => ({ ...s, station_number: e.target.value }))}
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={createPerson}
-            disabled={busyId === 'create'}
-            className="rounded-md bg-teal-600 hover:bg-teal-500 text-white text-sm px-4 py-2 disabled:opacity-60"
-          >
-            {busyId === 'create' ? 'جارٍ الإضافة...' : 'إضافة'}
-          </button>
-          <div className="text-xs text-gray-500">
-            سيتم ربط الفرد باسم القائد تلقائياً: <span className="text-gray-300">{leaderName}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* الجذر: القائد */}
-      <div className="rounded-md bg-gray-800 p-3">
-        <div className="text-white font-semibold">{leaderName}</div>
-        <div className="text-xs text-gray-400">المجموع الكلي للأصوات (ضمن الشجرة): {totalVotes}</div>
-      </div>
-
-      {/* الفروع: الأفراد (عرض جدول حقول الشخص الثمانية مع التحرير) */}
-      <div className="ml-0 md:ml-4">
-        <div className="text-sm text-gray-400 mb-2">الأفراد (الأحدث أولاً):</div>
-        {persons.length > 0 ? (
-          <ul className="space-y-3">
-            {persons.map((p) => {
-              const isEditing = editingId === p.id;
-              return (
-                <li key={p.id} className="rounded-md bg-gray-800 p-3">
-                  {!isEditing ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <div className="text-gray-200 font-medium">{p.full_name}</div>
-                        <span className="text-xs text-gray-500">ID: {p.id}</span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                        <div className="text-gray-300">
-                          اسم القائد: <span className="text-gray-200">{leaderName}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          الأصوات: <span className="text-gray-200">{p.votes_count ?? 0}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          السكن: <span className="text-gray-200">{p.residence ?? '—'}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          الهاتف: <span className="text-gray-200">{p.phone ?? '—'}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          جهة العمل: <span className="text-gray-200">{p.workplace ?? '—'}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          معلومات المركز: <span className="text-gray-200">{p.center_info ?? '—'}</span>
-                        </div>
-                        <div className="text-gray-300">
-                          رقم المحطة: <span className="text-gray-200">{p.station_number ?? '—'}</span>
-                        </div>
-                        <div className="text-gray-400 text-xs">
-                          أضيف في: {new Date(p.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={() => beginEdit(p)}
-                          className="rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1"
-                        >
-                          تعديل
-                        </button>
-                        <button
-                          onClick={() => deletePerson(p.id)}
-                          disabled={busyId === p.id}
-                          className="rounded-md bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 disabled:opacity-60"
-                        >
-                          {busyId === p.id ? 'جارٍ الحذف...' : 'حذف'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {/* عرض فقط اسم القائد بدون إدخال لتحاسس الالتباس */}
-                        <div className="text-gray-300">
-                          <div className="text-xs text-gray-400 mb-1">اسم القائد</div>
-                          <div className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-gray-300">
-                            {leaderName}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">الاسم الكامل</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.full_name}
-                            onChange={(e) => setEditData((s) => ({ ...s, full_name: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">عدد الأصوات</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.votes_count}
-                            onChange={(e) => setEditData((s) => ({ ...s, votes_count: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">السكن</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.residence}
-                            onChange={(e) => setEditData((s) => ({ ...s, residence: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">الهاتف</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.phone}
-                            onChange={(e) => setEditData((s) => ({ ...s, phone: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">جهة العمل</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.workplace}
-                            onChange={(e) => setEditData((s) => ({ ...s, workplace: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">معلومات المركز</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.center_info}
-                            onChange={(e) => setEditData((s) => ({ ...s, center_info: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">رقم المحطة</div>
-                          <input
-                            className="w-full rounded-md bg-gray-900 border border-gray-700 p-2 text-sm text-white"
-                            value={editData.station_number}
-                            onChange={(e) => setEditData((s) => ({ ...s, station_number: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={() => saveEdit(p.id)}
-                          disabled={busyId === p.id}
-                          className="rounded-md bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-1 disabled:opacity-60"
-                        >
-                          {busyId === p.id ? 'جارٍ الحفظ...' : 'حفظ'}
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="rounded-md bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1"
-                        >
-                          إلغاء
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="text-sm text-gray-500">لا توجد بيانات أفراد لهذا القائد.</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function LeadersPage() {
-  const [data, setData] = useState<LeaderItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [err, setErr] = useState<string | null>(null);
-
-  // حالة الـ Modal
-  const [openLeader, setOpenLeader] = useState<LeaderItem | null>(null);
-  const [treeLoading, setTreeLoading] = useState<boolean>(false);
-  const [treeErr, setTreeErr] = useState<string | null>(null);
-  const [treePersons, setTreePersons] = useState<PersonNode[]>([]);
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        const res = await fetch('/api/leaders', { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json: LeadersApiResponse = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          const items = json.data
-            .sort((a, b) => b.id - a.id)
-            .slice(0, 10);
-          if (mounted) setData(items);
-        } else {
-          throw new Error('Invalid response shape');
-        }
-      } catch (e: any) {
-        if (mounted) setErr(e?.message ?? 'Failed to load');
-      } finally {
-        if (mounted) setLoading(false);
+      if (response.ok) {
+        toast({
+          title: "نجح",
+          description: editingLeader ? "تم تحديث القائد بنجاح" : "تم إضافة القائد بنجاح",
+        });
+        setIsEditModalOpen(false);
+        fetchLeaders();
+      } else {
+        throw new Error('Failed to save leader');
       }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const openTreeForLeader = async (leader: LeaderItem) => {
-    setOpenLeader(leader);
-    await refreshTree(leader.full_name);
-  };
-
-  const refreshTree = async (leaderFullName: string) => {
-    setTreeLoading(true);
-    setTreeErr(null);
-    setTreePersons([]);
-    try {
-      const params = new URLSearchParams();
-      if (leaderFullName) params.set('leader_name', leaderFullName);
-      params.set('order', 'desc');
-      params.set('limit', '200');
-      const res = await fetch(`/api/individuals?${params.toString()}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const persons: PersonNode[] = Array.isArray(json?.data)
-        ? json.data
-            .map((p: any) => ({
-              id: p.id,
-              leader_name: p.leader_name ?? null,
-              full_name: p.full_name,
-              residence: p.residence ?? null,
-              phone: p.phone ?? null,
-              workplace: p.workplace ?? null,
-              center_info: p.center_info ?? null,
-              station_number: p.station_number ?? null,
-              votes_count:
-                typeof p.votes_count === 'number' ? p.votes_count : Number(p.votes_count ?? 0),
-              created_at: p.created_at,
-              updated_at: p.updated_at,
-            }))
-            .sort((a: PersonNode, b: PersonNode) => b.id - a.id)
-        : [];
-      setTreePersons(persons);
-    } catch (e: any) {
-      setTreeErr(e?.message ?? 'Failed to load leader relations');
-    } finally {
-      setTreeLoading(false);
+    } catch (error) {
+      console.error('Error saving leader:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ بيانات القائد",
+        variant: "destructive",
+      });
     }
   };
 
-  const closeModal = () => {
-    setOpenLeader(null);
-    setTreePersons([]);
-    setTreeErr(null);
-    setTreeLoading(false);
+  const handleDelete = async (id: number) => {
+    if (!confirm('هل أنت متأكد من حذف هذا القائد؟ سيؤثر هذا على جميع الأفراد المرتبطين به.')) return;
+    
+    try {
+      const response = await fetch(`/api/leaders/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "نجح",
+          description: "تم حذف القائد بنجاح",
+        });
+        fetchLeaders();
+      } else {
+        throw new Error('Failed to delete leader');
+      }
+    } catch (error) {
+      console.error('Error deleting leader:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف القائد",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-gray-300">جارٍ التحميل...</div>
-      </div>
-    );
-  }
+  // Export to CSV
+  const exportToCSV = () => {
+    const csvContent = [
+      ['الرقم', 'الاسم الكامل', 'السكن', 'الهاتف', 'جهة العمل', 'معلومات المركز', 'رقم المحطة', 'أصوات القائد', 'عدد الأفراد', 'أصوات الأفراد', 'المجموع'],
+      ...filteredAndSortedLeaders.map(leader => [
+        leader.id,
+        leader.full_name,
+        leader.residence || '',
+        leader.phone || '',
+        leader.workplace || '',
+        leader.center_info || '',
+        leader.station_number || '',
+        leader.votes_count || 0,
+        leader._count?.individuals || 0,
+        leader.totalIndividualsVotes || 0,
+        (leader.votes_count || 0) + (leader.totalIndividualsVotes || 0)
+      ])
+    ].map(row => row.join(',')).join('\n');
 
-  if (err) {
-    return (
-      <div className="p-6">
-        <div className="text-red-400">خطأ: {err}</div>
-      </div>
-    );
-  }
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leaders_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   return (
-    <div className="p-6">
-      {/* عنوان الصفحة */}
-      <h1 className="text-2xl font-bold mb-6 text-white">إدارة القادة</h1>
+    <div className="container mx-auto p-6" dir="rtl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">إدارة القادة</h1>
+        <p className="text-gray-600">إدارة وعرض بيانات القادة والمشرفين</p>
+      </div>
 
-      {/* شبكة بطاقات القادة */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {data.map((leader) => {
-          const individualsCount = leader._count?.individuals ?? 0;
-          const votesSum = leader.totalIndividualsVotes ?? 0;
-          const preview = leader.individualsPreview ?? [];
-
-          return (
-            <button
-              type="button"
-              key={leader.id}
-              onClick={() => openTreeForLeader(leader)}
-              className="text-left rounded-lg border border-gray-700 bg-gray-900 p-4 shadow-md hover:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600"
-            >
-              {/* اسم القائد */}
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold !text-white">
-                  {leader.full_name || '—'}
-                </h2>
-                <span className="text-xs text-gray-400">ID: {leader.id}</span>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-blue-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{stats.totalLeaders}</p>
+                <p className="text-gray-600">إجمالي القادة</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* معلومات أساسية (اختيارية) */}
-              <div className="space-y-1 text-sm">
-                {leader.phone ? (
-                  <div className="text-gray-300">
-                    الهاتف: <span className="text-gray-200">{leader.phone}</span>
-                  </div>
-                ) : null}
-                {leader.residence ? (
-                  <div className="text-gray-300">
-                    السكن: <span className="text-gray-200">{leader.residence}</span>
-                  </div>
-                ) : null}
-                {leader.workplace ? (
-                  <div className="text-gray-300">
-                    جهة العمل: <span className="text-gray-200">{leader.workplace}</span>
-                  </div>
-                ) : null}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Vote className="h-8 w-8 text-green-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{stats.totalVotes}</p>
+                <p className="text-gray-600">أصوات القادة</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* إحصاءات الأفراد والأصوات */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-md bg-gray-800 p-3">
-                  <div className="text-xs text-gray-400">عدد الأفراد</div>
-                  <div className="text-xl font-bold text-white">{individualsCount}</div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Users2 className="h-8 w-8 text-purple-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{stats.totalIndividuals}</p>
+                <p className="text-gray-600">إجمالي الأفراد</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <div className="mr-4">
+                <p className="text-2xl font-bold">{stats.grandTotal}</p>
+                <p className="text-gray-600">المجموع الكلي</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 mb-4">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="البحث في الاسم، الهاتف، السكن، أو جهة العمل..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة قائد جديد
+          </Button>
+          
+          <Button onClick={exportToCSV} variant="outline">
+            <FileDown className="h-4 w-4 ml-2" />
+            تصدير CSV
+          </Button>
+
+          <Button
+            onClick={() => toggleSort('id')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            ترتيب حسب الرقم
+            {sortField === 'id' && (
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+            )}
+            {sortField !== 'id' && <ArrowUpDown className="h-4 w-4" />}
+          </Button>
+
+          <Button
+            onClick={() => toggleSort('full_name')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            ترتيب حسب الاسم
+            {sortField === 'full_name' && (
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+            )}
+            {sortField !== 'full_name' && <ArrowUpDown className="h-4 w-4" />}
+          </Button>
+
+          <Button
+            onClick={() => toggleSort('votes_count')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            ترتيب حسب الأصوات
+            {sortField === 'votes_count' && (
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+            )}
+            {sortField !== 'votes_count' && <ArrowUpDown className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Leaders Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedLeaders.map((leader) => (
+            <Card key={leader.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                      {leader.full_name}
+                    </h3>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      قائد #{leader.id}
+                    </Badge>
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditModal(leader)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        تعديل
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDelete(leader.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        حذف
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <div className="rounded-md bg-gray-800 p-3">
-                  <div className="text-xs text-gray-400">مجموع الأصوات</div>
-                  <div className="text-xl font-bold text-white">{votesSum}</div>
-                </div>
-              </div>
 
-              {/* معاينة الأفراد */}
-              <div className="mt-4">
-                <div className="text-xs text-gray-400 mb-2">معاينة الأفراد (أحدث 5):</div>
-                {Array.isArray(leader.individualsPreview) && leader.individualsPreview.length > 0 ? (
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {leader.individualsPreview.map((p: any, idx: number) => {
-                      // حارس إضافي: إن كان p كائناً نقرأ الحقول ونحوّل كلها إلى نصوص
-                      const full = showText(p?.full_name);
-                      const phone = showText(p?.phone);
-                      const res   = showText(p?.residence);
-                      return (
-                        <li key={idx} className="truncate">
-                          <span className="font-medium">{full}</span>
-                          <span className="mx-1">•</span>
-                          <span>{phone}</span>
-                          <span className="mx-1">•</span>
-                          <span>{res}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-muted-foreground">لايوجد أفراد للعرض</div>
+                <div className="space-y-2 mb-4">
+                  {leader.residence && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 ml-2 text-gray-400" />
+                      {leader.residence}
+                    </div>
+                  )}
+                  
+                  {leader.phone && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Phone className="h-4 w-4 ml-2 text-gray-400" />
+                      {leader.phone}
+                    </div>
+                  )}
+                  
+                  {leader.workplace && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Building className="h-4 w-4 ml-2 text-gray-400" />
+                      {leader.workplace}
+                    </div>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-2 pt-4 border-t">
+                  <div className="text-center p-2 bg-green-50 rounded">
+                    <p className="text-lg font-semibold text-green-700">
+                      {leader.votes_count || 0}
+                    </p>
+                    <p className="text-xs text-green-600">أصوات القائد</p>
+                  </div>
+                  
+                  <div className="text-center p-2 bg-blue-50 rounded">
+                    <p className="text-lg font-semibold text-blue-700">
+                      {leader._count?.individuals || 0}
+                    </p>
+                    <p className="text-xs text-blue-600">عدد الأفراد</p>
+                  </div>
+                </div>
+
+                {/* Total votes */}
+                <div className="mt-3 pt-3 border-t">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">المجموع الكلي:</span>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                      {(leader.votes_count || 0) + (leader.totalIndividualsVotes || 0)} صوت
+                    </Badge>
+                  </div>
+                </div>
+
+                {leader.station_number && (
+                  <div className="mt-3 pt-3 border-t">
+                    <Badge variant="outline" className="text-xs">
+                      المحطة {leader.station_number}
+                    </Badge>
+                  </div>
                 )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ملاحظة: الصفحة تعرض فقط القادة من جدول leaders (10 من ورقة الإكسل) */}
-      <div className="mt-6 text-xs text-gray-500">
-        المصدر: جدول القادة (leaders) فقط. لا يتم الاعتماد على جدول الأفراد لاحتساب القادة.
-      </div>
-
-      {/* Modal شجرة العلاقات */}
-      {openLeader && (
-        <Modal
-          title={`شجرة العلاقات - ${openLeader.full_name || ''}`}
-          onClose={closeModal}
-          maxWidth="max-w-5xl"
-        >
-          {treeLoading ? (
-            <div className="text-gray-300">جارٍ تحميل شجرة العلاقات...</div>
-          ) : treeErr ? (
-            <div className="text-red-400">خطأ: {treeErr}</div>
-          ) : (
-            <RelationTree
-              leaderName={openLeader.full_name}
-              persons={treePersons}
-              onRefresh={() => {
-                if (openLeader?.full_name) refreshTree(openLeader.full_name);
-              }}
-            />
-          )}
-        </Modal>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
+
+      {!loading && filteredAndSortedLeaders.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد نتائج</h3>
+          <p className="text-gray-600">لم يتم العثور على قادة مطابقين لمعايير البحث</p>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingLeader ? 'تعديل بيانات القائد' : 'إضافة قائد جديد'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="full_name">الاسم الكامل *</Label>
+                <Input
+                  id="full_name"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="residence">السكن</Label>
+                <Input
+                  id="residence"
+                  value={editForm.residence}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, residence: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Input
+                  id="phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="workplace">جهة العمل</Label>
+                <Input
+                  id="workplace"
+                  value={editForm.workplace}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, workplace: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="center_info">معلومات المركز</Label>
+                <Input
+                  id="center_info"
+                  value={editForm.center_info}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, center_info: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="station_number">رقم المحطة</Label>
+                <Input
+                  id="station_number"
+                  value={editForm.station_number}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, station_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="votes_count">عدد الأصوات</Label>
+                <Input
+                  id="votes_count"
+                  type="number"
+                  min="0"
+                  value={editForm.votes_count}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, votes_count: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                {editingLeader ? 'تحديث' : 'إضافة'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
+
+export default LeadersPage;

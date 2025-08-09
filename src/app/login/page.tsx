@@ -1,187 +1,205 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { withCsrf } from '@/lib/csrf-client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Lock, Eye, EyeOff } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
-function LoginClient() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+export default function LoginPage() {
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [capsOn, setCapsOn] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccess('');
 
     try {
-      const response = await fetch(
-        '/api/auth/login',
-        withCsrf({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(formData),
-        })
-      );
-
-      const data = await response.json();
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
 
       if (response.ok) {
-        setSuccess('تم تسجيل الدخول بنجاح! سيتم تحويلك للوحة التحكم...');
-        toast({ title: 'تم تسجيل الدخول', description: 'مرحبًا بعودتك.' });
-        // في بيئات التطوير فقط: خزّن التوكن احتياطياً في localStorage لدعم البروكسي
-        try {
-          if (process.env.NODE_ENV !== 'production' && data?.token) {
-            localStorage.setItem('auth_token', data.token);
-          }
-        } catch {}
-        setTimeout(() => {
-          const returnTo = searchParams.get('returnTo') || '/';
-          router.replace(returnTo);
-        }, 800);
+        router.push('/');
+        router.refresh();
       } else {
-        const msg = data.error || 'فشل تسجيل الدخول';
-        setError(msg);
-        toast({ title: 'تعذّر تسجيل الدخول', description: msg, variant: 'destructive' });
+        toast({
+          title: "خطأ في تسجيل الدخول",
+          description: "كلمة المرور غير صحيحة",
+          variant: "destructive",
+        });
       }
-    } catch (err) {
-      setError('حدث خطأ في الاتصال بالخادم');
-      toast({ title: 'مشكلة اتصال', description: 'تعذّر الوصول إلى الخادم. حاول مجددًا.', variant: 'destructive' });
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ في الاتصال",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black p-4">
-      <Card className="w-full max-w-md bg-gray-800 border border-gray-700 shadow-xl rounded-2xl">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white text-2xl font-bold tracking-widest">ح ع</span>
+    <div className="min-h-screen relative overflow-hidden" dir="rtl">
+      {/* Background with Iraqi flag gradient and pattern */}
+      <div className="absolute inset-0">
+        {/* Iraqi flag inspired gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-white to-black"></div>
+        
+        {/* Overlay for better contrast */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/40 via-slate-800/20 to-slate-900/60"></div>
+        
+        {/* Geometric pattern overlay */}
+        <div className="absolute inset-0 opacity-10">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="islamic-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                <g fill="currentColor">
+                  <polygon points="50,0 100,50 50,100 0,50" opacity="0.3"/>
+                  <circle cx="50" cy="50" r="20" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5"/>
+                </g>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#islamic-pattern)" className="text-amber-400"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div className="w-full max-w-md">
+          {/* Official Header */}
+          <div className="text-center mb-8">
+            {/* Iraqi Eagle (Saladin's Eagle) - SVG representation */}
+            <div className="relative mx-auto mb-6 w-24 h-24 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 shadow-2xl"></div>
+              <svg 
+                className="relative z-10 w-16 h-16 text-amber-900" 
+                viewBox="0 0 100 100" 
+                fill="currentColor"
+              >
+                {/* Simplified Eagle representation */}
+                <path d="M50 10 C45 10, 40 15, 40 20 L40 35 C35 40, 30 45, 30 50 C30 55, 35 60, 40 65 L40 80 C40 85, 45 90, 50 90 C55 90, 60 85, 60 80 L60 65 C65 60, 70 55, 70 50 C70 45, 65 40, 60 35 L60 20 C60 15, 55 10, 50 10 Z"/>
+                <path d="M30 50 C25 45, 20 50, 25 55 C30 55, 30 50, 30 50 Z"/>
+                <path d="M70 50 C75 45, 80 50, 75 55 C70 55, 70 50, 70 50 Z"/>
+                <circle cx="45" cy="35" r="3" className="text-red-800"/>
+                <circle cx="55" cy="35" r="3" className="text-red-800"/>
+              </svg>
+            </div>
+
+            {/* Official Text */}
+            <div className="mb-4">
+              <h1 className="text-2xl font-bold text-amber-400 mb-2 tracking-wide">
+                جمهورية العراق
+              </h1>
+              <div className="w-32 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-3"></div>
+              <h2 className="text-lg font-semibold text-amber-300 mb-1">
+                مكتب النائب
+              </h2>
+              <h3 className="text-xl font-bold text-white">
+                علي الحميداوي
+              </h3>
             </div>
           </div>
-          <CardTitle className="text-2xl font-extrabold text-white mb-1">
-            نظام إدارة مكتب النائب
-          </CardTitle>
-          <CardDescription className="text-gray-300 text-base font-medium">
-            منصة إلكترونية لإدارة الحملة الانتخابية للنائب علي الحميداوي
-          </CardDescription>
-        </CardHeader>
 
-        <form onSubmit={handleSubmit} autoComplete="on" className="mt-2">
-          <CardContent className="space-y-5">
-            {error && (
-              <Alert variant="destructive" className="bg-red-900 border-red-700">
-                <AlertDescription className="text-red-100 text-sm font-bold">{error}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert variant="default" className="bg-green-900 border-green-700 mt-2">
-                <AlertDescription className="text-green-100 text-sm font-bold">{success}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-1 text-right">
-              <Label htmlFor="email" className="text-gray-200 font-semibold">البريد الإلكتروني</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="example@hamidawi.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                autoComplete="username"
-                className="text-right bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div className="space-y-1 text-right">
-              <Label htmlFor="password" className="text-gray-200 font-semibold">كلمة المرور</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="كلمة المرور..."
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  onKeyUp={(e) => setCapsOn((e as unknown as KeyboardEvent).getModifierState?.('CapsLock') ?? false)}
-                  required
-                  autoComplete="current-password"
-                  className="text-right bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500 pr-10"
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute inset-y-0 left-2 flex items-center text-gray-300 hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {capsOn && (
-                <div className="flex items-center gap-2 text-amber-300 text-xs mt-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  تنبيه: زر الحروف الكبيرة (Caps Lock) مفعّل
+          {/* Login Card */}
+          <Card className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl">
+            <CardContent className="p-8">
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="p-3 rounded-full bg-amber-500/20 backdrop-blur-sm">
+                    <Lock className="h-6 w-6 text-amber-400" />
+                  </div>
                 </div>
-              )}
+                <h4 className="text-xl font-bold text-white mb-2">
+                  تسجيل الدخول
+                </h4>
+                <p className="text-white/70 text-sm">
+                  نظام إدارة القادة والأفراد
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label className="block text-white/90 text-sm font-medium mb-2">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="أدخل كلمة المرور"
+                      required
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 backdrop-blur-sm focus:border-amber-400 focus:ring-amber-400 text-right pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 border-0"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      جاري التحقق...
+                    </div>
+                  ) : (
+                    'دخول'
+                  )}
+                </Button>
+              </form>
+
+              {/* Footer info */}
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <p className="text-center text-white/60 text-xs">
+                  نظام آمن ومحمي
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional governmental styling */}
+          <div className="text-center mt-6">
+            <div className="flex items-center justify-center gap-2 text-white/50 text-xs">
+              <div className="w-8 h-px bg-gradient-to-r from-transparent to-white/30"></div>
+              <span>مكتب النائب علي جاسم الحميداوي</span>
+              <div className="w-8 h-px bg-gradient-to-l from-transparent to-white/30"></div>
             </div>
-          </CardContent>
-
-          <CardFooter>
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg font-bold tracking-wide py-2"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                  جاري تسجيل الدخول...
-                </>
-              ) : (
-                'تسجيل الدخول'
-              )}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black p-4">
-          <div className="text-white/80">جاري التحميل...</div>
+          </div>
         </div>
-      }
-    >
-      <LoginClient />
-    </Suspense>
+      </div>
+
+      {/* Decorative elements */}
+      <div className="absolute top-4 left-4 opacity-20">
+        <div className="w-16 h-16 border border-amber-400/30 rounded-full"></div>
+      </div>
+      <div className="absolute bottom-4 right-4 opacity-20">
+        <div className="w-12 h-12 border border-amber-400/30 rounded-full"></div>
+      </div>
+      <div className="absolute top-1/4 right-8 opacity-10">
+        <div className="w-20 h-20 border border-white/20 rotate-45"></div>
+      </div>
+    </div>
   );
 }
