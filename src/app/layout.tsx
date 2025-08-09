@@ -28,8 +28,9 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { Home, FileText, MessagesSquare, Users, UserCircle, GitBranch, BarChart3, ShieldCheck, Settings } from "lucide-react";
+import { Home, FileText, MessagesSquare, Users, UserCircle, GitBranch, BarChart3, ShieldCheck, Settings, FileCode, Database } from "lucide-react";
 import PermissionGuard from "@/components/custom/permission-guard";
+import { AzureLoggerProvider } from "@/components/azure-logger-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -117,8 +118,9 @@ export default function RootLayout({
           {/* تأطير تلقائي للعناصر الشائعة عبر صنف container الافتراضي */}
           <div className="container mx-auto px-4">
             <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <SidebarProvider>
+              <AzureLoggerProvider>
+                <AuthProvider>
+                  <SidebarProvider>
                   {/* الشريط الجانبي مخفي في صفحة تسجيل الدخول */}
                   {!(pathname?.startsWith('/login')) && (
                     <Sidebar variant="inset" collapsible="icon">
@@ -208,6 +210,26 @@ export default function RootLayout({
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
                               </PermissionGuard>
+                              <PermissionGuard anyOf={["logs.read"]} mode="hide">
+                                <SidebarMenuItem>
+                                  <SidebarMenuButton asChild isActive={pathname?.startsWith('/logs')} className="gap-2">
+                                    <Link href="/logs">
+                                      <span>السجلات</span>
+                                      <FileCode className="h-4 w-4 shrink-0" />
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              </PermissionGuard>
+                              <PermissionGuard anyOf={["backup.read"]} mode="hide">
+                                <SidebarMenuItem>
+                                  <SidebarMenuButton asChild isActive={pathname?.startsWith('/backup')} className="gap-2">
+                                    <Link href="/backup">
+                                      <span>النسخ الاحتياطي</span>
+                                      <Database className="h-4 w-4 shrink-0" />
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              </PermissionGuard>
                             </SidebarMenu>
                           </SidebarGroupContent>
                         </SidebarGroup>
@@ -231,6 +253,7 @@ export default function RootLayout({
                   </SidebarInset>
                 </SidebarProvider>
               </AuthProvider>
+              </AzureLoggerProvider>
               <ReactQueryDevtools initialIsOpen={false} />
             </QueryClientProvider>
           </div>

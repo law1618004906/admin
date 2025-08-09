@@ -45,10 +45,12 @@ next-env.d.ts
 local-*
 .claude
 .z-ai-config
-dev.log
-test
-prompt
+# logs and log files
+logs/*.log
+logs/app-*.log
 server.log
+dev.log
+*.log
 
 # SWC cache
 .swc/

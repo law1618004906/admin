@@ -8,6 +8,8 @@ const protectedRoutes = ['/'];
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
+  const startTime = Date.now();
+  
   try {
     // ابحث عن كوكي الجلسة الصحيح: في HTTPS نستخدم __Host-session، وفي التطوير HTTP نستخدم session
     const sessionToken =
@@ -26,7 +28,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(new URL('/login', request.nextUrl));
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+    
+    // إضافة headers للـ logging
+    const duration = Date.now() - startTime;
+    response.headers.set('X-Response-Time', `${duration}ms`);
+    response.headers.set('X-Pathname', pathname);
+    
+    return response;
   } catch (error) {
     console.error('Middleware error:', error);
     return NextResponse.next();
