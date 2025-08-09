@@ -24,7 +24,6 @@ class AzureLogger {
             enableUnhandledPromiseRejectionTracking: true,
             disableExceptionTracking: false,
             disableTelemetry: false,
-            verboseLogging: process.env.NODE_ENV === 'development',
             enableDebug: process.env.NODE_ENV === 'development',
             cookieCfg: {
               enabled: true,
@@ -90,15 +89,20 @@ class AzureLogger {
   }
 
   // تسجيل التبعيات
-  trackDependency(name: string, data: string, duration: number, success: boolean, resultCode?: number) {
+  trackDependency(name: string, data: string, duration: number, success: boolean, responseCode?: number) {
     if (this.appInsights && this.isInitialized) {
-      this.appInsights.trackDependencyData({
+      const dependencyData: any = {
         name,
         data,
         duration,
-        success,
-        resultCode
-      });
+        success
+      };
+      
+      if (responseCode !== undefined) {
+        dependencyData.responseCode = responseCode;
+      }
+      
+      this.appInsights.trackDependencyData(dependencyData);
     }
   }
 

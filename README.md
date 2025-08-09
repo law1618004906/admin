@@ -1,9 +1,10 @@
 # نظام إدارة مكتب النائب علي الحميداوي
 ## Election Campaign Management System - Office of MP Ali Al-Hamidawi
 
-**الإصدار:** v1.0.0  
+**الإصدار:** v1.2.0  
 **الطور:** Production Ready  
-**الموقع المباشر:** [https://end-admin-app-1754695871.azurewebsites.net/](https://end-admin-app-1754695871.azurewebsites.net/)
+**الموقع المحلي:** [http://localhost:9000](http://localhost:9000)  
+**حالة النشر:** 🟢 يعمل بشكل طبيعي
 
 ![Status](https://img.shields.io/badge/status-production--ready-green) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![React](https://img.shields.io/badge/React-19-61dafb) ![Prisma](https://img.shields.io/badge/Prisma-ORM-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue) ![Azure](https://img.shields.io/badge/Azure-Deployed-0078d4) ![License](https://img.shields.io/badge/License-Private-red)
 
@@ -794,7 +795,29 @@ npm run build
 
 ## 📝 سجل التغييرات
 
-### v1.1.0 (2025-08-08) - الإصدار الحالي
+### v1.2.0 (2025-08-09) - الإصدار الحالي
+
+#### ✅ إضافات جديدة
+- **نظام السجلات المحسن** مع Azure Application Insights
+- **نظام النسخ الاحتياطية التلقائية** للبيانات
+- **API إعادة تعيين المدير** للطوارئ
+- **Docker Compose للإنتاج** مع إعدادات محسنة
+- **سكريبت النشر التلقائي** (deploy-azure.sh)
+- **مراقبة الصحة المحسنة** مع Health Checks
+
+#### 🔧 تحسينات
+- **أداء قاعدة البيانات** محسن مع Prisma
+- **واجهة المستخدم** محسنة للاستقرار
+- **نظام المصادقة** محسن مع JWT
+- **سجلات النظام** منظمة ومفصلة
+
+#### 🐛 إصلاحات
+- **مشاكل قاعدة البيانات** في بيئة الإنتاج
+- **أخطاء المصادقة** وتسجيل الدخول
+- **مشاكل Docker** وإعداد الحاويات
+- **تحسين استقرار النظام** العام
+
+### v1.1.0 (2025-08-08)
 
 #### ✅ إضافات جديدة
 - **نشر كامل على Azure** مع Container Registry
@@ -862,7 +885,32 @@ npm run build
 **💚 لخدمة الشعب العراقي**  
 **🚀 نحو مستقبل رقمي أفضل**
 
-**الموقع المباشر**: [https://end-admin-app-1754695871.azurewebsites.net/](https://end-admin-app-1754695871.azurewebsites.net/)
+**الموقع المحلي**: [http://localhost:9090](http://localhost:9090)  
+**الموقع السحابي**: [https://end-admin-app-1754695871.azurewebsites.net/](https://end-admin-app-1754695871.azurewebsites.net/)
+
+### 🔑 بيانات الدخول النهائية
+- **البريد الإلكتروني**: admin@hamidawi.com
+- **كلمة المرور**: admin123
+- **المنفذ المحلي**: 9090
+- **حالة النشر**: 🟢 نشط ويعمل
+
+### 🚀 النشر المحلي السريع
+```bash
+# تشغيل التطبيق
+docker run -d --name hamidawi-final -p 9090:3000 \
+  -e DATABASE_URL="file:/app/prisma-data/production.db" \
+  -e APPINSIGHTS_INSTRUMENTATIONKEY="33dbc1cb-ae36-4255-80f6-b45ffada617b" \
+  -v "$(pwd)/data:/app/prisma-data" \
+  -v "$(pwd)/logs:/app/logs" \
+  -v "$(pwd)/backups:/app/backups" \
+  logging-v1.3:latest
+
+# إعداد قاعدة البيانات
+docker exec hamidawi-final npx prisma db push
+
+# إنشاء المدير
+curl -X POST http://localhost:9090/api/setup/reset-admin
+```
 
 ---
 
