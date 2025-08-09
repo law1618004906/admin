@@ -41,7 +41,7 @@ COPY --from=builder /app/public ./public
 
 # App source required by server.ts
 COPY --from=builder /app/src ./src
-COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/server.prod.cjs ./server.prod.cjs
 
 # Prisma schema (for migrate deploy) and generated client
 COPY --from=builder /app/prisma ./prisma
@@ -53,7 +53,7 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 3000
 
 # Basic healthcheck (adjust /api/health if different)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
   CMD curl -fsS http://127.0.0.1:3000/api/health || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

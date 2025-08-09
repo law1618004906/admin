@@ -40,13 +40,39 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local files and caches
 local-*
 .claude
 .z-ai-config
 dev.log
 test
 prompt
-
 server.log
+
+# SWC cache
+.swc/
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# IDEs and editors
+.vscode/
+.windsurf/
+.idea/
+*.swp
+*.swo
+
+# Azure deployment files
+.azure/
+*.log
+*Establishin*
+
+# Database files (local development)
+*.sqlite
+*.db
+prisma/dev.db
 prisma/**/*.db
 prisma/**/*.sqlite
