@@ -12,9 +12,11 @@ type TreeNode = {
 };
 
 export async function GET(request: NextRequest) {
-  return requireAuth(async (_req, _user) => {
-    try {
-      // اجلب جميع القادة
+  try {
+    // التحقق من المصادقة
+    await requireAuth(request);
+    
+    // اجلب جميع القادة
       const leaders = await db.$queryRawUnsafe<Array<{
         id: number;
         full_name: string;

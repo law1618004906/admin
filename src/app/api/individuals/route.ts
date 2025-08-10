@@ -72,10 +72,12 @@ function mapPerson(p: any): PersonPayload {
 
 // GET all individuals - مع Keyset Pagination + فلاتر - Prisma
 export async function GET(request: NextRequest) {
-  return requireAuth(async (req, _user) => {
+  try {
+    // التحقق من المصادقة
+    await requireAuth(request);
+    
     const t0 = Date.now();
-    try {
-      const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
 
       // فلاتر
       const q = (searchParams.get('q') || '').trim(); // بحث عام: الاسم/السكن/المركز/الهاتف
@@ -186,14 +188,15 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching individuals:', error);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-  })(request);
 }
 
 // POST create new individual - Prisma
 export async function POST(request: NextRequest) {
-  return requireAuth(async (req, _user) => {
-    try {
-      const body = await req.json();
+  try {
+    // التحقق من المصادقة
+    await requireAuth(request);
+    
+    const body = await request.json();
       const {
         leader_name,
         full_name,
@@ -249,5 +252,4 @@ export async function POST(request: NextRequest) {
       console.error('Error creating individual:', error);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-  })(request);
 }

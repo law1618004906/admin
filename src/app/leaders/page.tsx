@@ -277,21 +277,22 @@ const LeadersPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-slate-900 to-black p-6" dir="rtl">
+      <div className="container mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">إدارة القادة</h1>
-        <p className="text-gray-600">إدارة وعرض بيانات القادة والمشرفين</p>
+        <h1 className="text-3xl font-bold text-amber-400 mb-2">إدارة القادة</h1>
+        <p className="text-purple-200">إدارة وعرض بيانات القادة والمشرفين</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
+        <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-blue-600" />
+              <Users className="h-8 w-8 text-amber-400" />
               <div className="mr-4">
-                <p className="text-2xl font-bold">{stats.totalLeaders}</p>
-                <p className="text-gray-600">إجمالي القادة</p>
+                <p className="text-2xl font-bold text-white">{stats.totalLeaders}</p>
+                <p className="text-purple-200">إجمالي القادة</p>
               </div>
             </div>
           </CardContent>
@@ -303,7 +304,7 @@ const LeadersPage = () => {
               <Vote className="h-8 w-8 text-green-600" />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.totalVotes}</p>
-                <p className="text-gray-600">أصوات القادة</p>
+                <p className="text-purple-200">أصوات القادة</p>
               </div>
             </div>
           </CardContent>
@@ -315,7 +316,7 @@ const LeadersPage = () => {
               <Users2 className="h-8 w-8 text-purple-600" />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.totalIndividuals}</p>
-                <p className="text-gray-600">إجمالي الأفراد</p>
+                <p className="text-purple-200">إجمالي الأفراد</p>
               </div>
             </div>
           </CardContent>
@@ -327,7 +328,7 @@ const LeadersPage = () => {
               <TrendingUp className="h-8 w-8 text-orange-600" />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.grandTotal}</p>
-                <p className="text-gray-600">المجموع الكلي</p>
+                <p className="text-purple-200">المجموع الكلي</p>
               </div>
             </div>
           </CardContent>
@@ -335,17 +336,17 @@ const LeadersPage = () => {
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+      <div className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex flex-col lg:flex-row gap-4 mb-4">
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute right-3 top-3 h-4 w-4 text-purple-300" />
               <Input
                 placeholder="البحث في الاسم، الهاتف، السكن، أو جهة العمل..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pr-10"
+                className="pr-10 bg-purple-700/30 border-purple-600/50 text-white placeholder:text-purple-300"
               />
             </div>
           </div>
@@ -353,8 +354,8 @@ const LeadersPage = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 ml-2" />
+          <Button onClick={openAddModal} className="bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
+            <Plus className="h-4 w-4 ml-2 text-amber-300" />
             إضافة قائد جديد
           </Button>
           
@@ -407,10 +408,10 @@ const LeadersPage = () => {
           {[...Array(6)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-                <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-purple-600/30 rounded w-3/4 mb-4"></div>
+                <div className="h-3 bg-purple-600/30 rounded w-full mb-2"></div>
+                <div className="h-3 bg-purple-600/30 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-purple-600/30 rounded w-1/2"></div>
               </CardContent>
             </Card>
           ))}
@@ -422,7 +423,7 @@ const LeadersPage = () => {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                    <h3 className="font-semibold text-lg text-amber-400 mb-1">
                       {leader.full_name}
                     </h3>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
@@ -454,22 +455,22 @@ const LeadersPage = () => {
 
                 <div className="space-y-2 mb-4">
                   {leader.residence && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 ml-2 text-gray-400" />
+                    <div className="flex items-center text-sm text-purple-200">
+                      <MapPin className="h-4 w-4 ml-2 text-purple-300" />
                       {leader.residence}
                     </div>
                   )}
                   
                   {leader.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="h-4 w-4 ml-2 text-gray-400" />
+                    <div className="flex items-center text-sm text-purple-200">
+                      <Phone className="h-4 w-4 ml-2 text-purple-300" />
                       {leader.phone}
                     </div>
                   )}
                   
                   {leader.workplace && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Building className="h-4 w-4 ml-2 text-gray-400" />
+                    <div className="flex items-center text-sm text-purple-200">
+                      <Building className="h-4 w-4 ml-2 text-purple-300" />
                       {leader.workplace}
                     </div>
                   )}
@@ -495,7 +496,7 @@ const LeadersPage = () => {
                 {/* Total votes */}
                 <div className="mt-3 pt-3 border-t">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">المجموع الكلي:</span>
+                    <span className="text-sm text-purple-200">المجموع الكلي:</span>
                     <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                       {(leader.votes_count || 0) + (leader.totalIndividualsVotes || 0)} صوت
                     </Badge>
@@ -517,9 +518,9 @@ const LeadersPage = () => {
 
       {!loading && filteredAndSortedLeaders.length === 0 && (
         <div className="text-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد نتائج</h3>
-          <p className="text-gray-600">لم يتم العثور على قادة مطابقين لمعايير البحث</p>
+          <Users className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-amber-400 mb-2">لا توجد نتائج</h3>
+          <p className="text-purple-200">لم يتم العثور على قادة مطابقين لمعايير البحث</p>
         </div>
       )}
 
@@ -609,13 +610,14 @@ const LeadersPage = () => {
               >
                 إلغاء
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" className="bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
                 {editingLeader ? 'تحديث' : 'إضافة'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
@@ -31,7 +32,7 @@ export default function LoginPage() {
       } else {
         toast({
           title: "خطأ في تسجيل الدخول",
-          description: "كلمة المرور غير صحيحة",
+          description: "اسم المستخدم أو كلمة المرور غير صحيحة",
           variant: "destructive",
         });
       }
@@ -48,28 +49,19 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden" dir="rtl">
-      {/* Background with Iraqi flag gradient and pattern */}
+      {/* Background Image */}
       <div className="absolute inset-0">
-        {/* Iraqi flag inspired gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-white to-black"></div>
+        {/* Main background image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: "url('/background.png')"
+          }}
+        ></div>
         
-        {/* Overlay for better contrast */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/40 via-slate-800/20 to-slate-900/60"></div>
-        
-        {/* Geometric pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="islamic-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                <g fill="currentColor">
-                  <polygon points="50,0 100,50 50,100 0,50" opacity="0.3"/>
-                  <circle cx="50" cy="50" r="20" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5"/>
-                </g>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#islamic-pattern)" className="text-amber-400"/>
-          </svg>
-        </div>
+        {/* Overlay for better contrast and readability */}
+                {/* Overlay for better contrast and readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/70"></div>
       </div>
 
       {/* Main Content */}
@@ -77,51 +69,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Official Header */}
           <div className="text-center mb-8">
-            {/* Iraqi Eagle (Saladin's Eagle) - الشعار الحقيقي لجمهورية العراق */}
-            <div className="relative mx-auto mb-6 w-28 h-28 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 shadow-2xl opacity-20"></div>
-              <svg 
-                className="relative z-10 w-20 h-20 text-amber-400" 
-                viewBox="0 0 200 200" 
-                fill="currentColor"
-              >
-                {/* عقاب صلاح الدين الأيوبي - الشعار الرسمي */}
-                {/* الجسم الرئيسي للعقاب */}
-                <path d="M100 40 C90 35, 80 40, 75 50 L75 70 C70 75, 65 80, 65 90 C65 100, 70 110, 75 120 L75 150 C75 160, 85 170, 100 170 C115 170, 125 160, 125 150 L125 120 C130 110, 135 100, 135 90 C135 80, 130 75, 125 70 L125 50 C120 40, 110 35, 100 40 Z" stroke="currentColor" strokeWidth="2"/>
-                
-                {/* الأجنحة المفرودة */}
-                <path d="M65 90 C50 85, 35 90, 25 100 C20 105, 25 110, 35 108 C45 106, 55 100, 65 95 Z"/>
-                <path d="M135 90 C150 85, 165 90, 175 100 C180 105, 175 110, 165 108 C155 106, 145 100, 135 95 Z"/>
-                
-                {/* الجناح الأيسر العلوي */}
-                <path d="M75 70 C60 65, 45 70, 35 80 C30 85, 35 90, 45 88 C55 86, 65 80, 75 75 Z"/>
-                
-                {/* الجناح الأيمن العلوي */}
-                <path d="M125 70 C140 65, 155 70, 165 80 C170 85, 165 90, 155 88 C145 86, 135 80, 125 75 Z"/>
-                
-                {/* العينان */}
-                <circle cx="90" cy="60" r="4" className="text-red-600" fill="currentColor"/>
-                <circle cx="110" cy="60" r="4" className="text-red-600" fill="currentColor"/>
-                
-                {/* المنقار */}
-                <path d="M100 70 L95 80 L100 75 L105 80 Z" className="text-yellow-600" fill="currentColor"/>
-                
-                {/* الذيل */}
-                <path d="M85 150 L80 170 L90 165 L100 170 L110 165 L120 170 L115 150" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                
-                {/* المخالب */}
-                <path d="M85 165 L82 175 M90 167 L87 177 M95 168 L92 178" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M105 168 L108 178 M110 167 L113 177 M115 165 L118 175" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                
-                {/* النص العربي داخل الشعار */}
-                <text x="100" y="130" textAnchor="middle" className="text-[8px] font-bold fill-amber-300">
-                  الله أكبر
-                </text>
-                
-                {/* الزخرفة الإسلامية */}
-                <circle cx="100" cy="100" r="45" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
-                <circle cx="100" cy="100" r="35" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.2"/>
-              </svg>
+            {/* Iraqi Eagle Emblem */}
+            <div className="w-32 h-32 mx-auto mb-6 relative">
+              <img 
+                src="/shar1.png" 
+                alt="شعار جمهورية العراق"
+                className="w-full h-full object-contain drop-shadow-2xl"
+              />
             </div>
 
             {/* Official Text */}
@@ -130,11 +84,20 @@ export default function LoginPage() {
                 جمهورية العراق
               </h1>
               <div className="w-32 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-3"></div>
+              
+              {/* شعار "الله أكبر" */}
+              <div className="text-center mb-3">
+                <p className="text-amber-300 text-lg font-bold tracking-widest">
+                  الله أكبر
+                </p>
+                <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent mx-auto mt-1"></div>
+              </div>
+              
               <h2 className="text-lg font-semibold text-amber-300 mb-1">
                 مكتب النائب
               </h2>
               <h3 className="text-xl font-bold text-white">
-                علي الحميداوي
+                علي جاسم الحميداوي
               </h3>
             </div>
           </div>
@@ -157,6 +120,20 @@ export default function LoginPage() {
               </div>
 
               <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label className="block text-white/90 text-sm font-medium mb-2">
+                    اسم المستخدم
+                  </label>
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="أدخل اسم المستخدم"
+                    required
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 backdrop-blur-sm focus:border-amber-400 focus:ring-amber-400 text-right"
+                  />
+                </div>
+                
                 <div>
                   <label className="block text-white/90 text-sm font-medium mb-2">
                     كلمة المرور

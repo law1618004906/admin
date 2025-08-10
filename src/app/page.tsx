@@ -82,23 +82,23 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-slate-900 to-black p-4 md:p-8" dir="rtl">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">
+          <h1 className="text-4xl font-bold text-amber-400 mb-2">
             نظام إدارة القادة والأفراد
           </h1>
-          <p className="text-slate-600">
+          <p className="text-purple-200">
             لوحة المعلومات والإحصائيات
           </p>
         </div>
 
         {/* Stats Cards */}
         {err ? (
-          <Card className="mb-8">
+          <Card className="mb-8 bg-purple-800/20 border-purple-600/30">
             <CardContent className="p-6">
-              <div className="text-center text-red-600">
+              <div className="text-center text-red-400">
                 <p className="font-semibold mb-2">خطأ في التحميل</p>
                 <p className="text-sm">{err}</p>
               </div>
@@ -106,40 +106,40 @@ export default function HomePage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card>
+            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">إجمالي القادة</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-amber-400">إجمالي القادة</CardTitle>
+                <Users className="h-4 w-4 text-amber-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalLeaders || 0}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-white">{stats?.totalLeaders || 0}</div>
+                <p className="text-xs text-purple-200">
                   عدد القادة المسجلين في النظام
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">إجمالي الأفراد</CardTitle>
-                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-amber-400">إجمالي الأفراد</CardTitle>
+                <UserPlus className="h-4 w-4 text-amber-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalPersons || 0}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-white">{stats?.totalPersons || 0}</div>
+                <p className="text-xs text-purple-200">
                   عدد الأفراد المسجلين في النظام
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">إجمالي الأصوات</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-amber-400">إجمالي الأصوات</CardTitle>
+                <Users className="h-4 w-4 text-amber-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalVotes || 0}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-white">{stats?.totalVotes || 0}</div>
+                <p className="text-xs text-purple-200">
                   مجموع الأصوات لجميع القادة والأفراد
                 </p>
               </CardContent>
@@ -149,20 +149,20 @@ export default function HomePage() {
 
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card>
+          <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>توزيع الأفراد حسب القادة</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-amber-400">توزيع الأفراد حسب القادة</CardTitle>
+              <CardDescription className="text-purple-200">
                 عرض توزيع الأفراد على القادة المختلفين
               </CardDescription>
             </CardHeader>
             <CardContent>
               {chartLoading ? (
                 <div className="flex items-center justify-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
                 </div>
               ) : chartErr ? (
-                <div className="text-center text-red-600 h-64 flex items-center justify-center">
+                <div className="text-center text-red-400 h-64 flex items-center justify-center">
                   <p>{chartErr}</p>
                 </div>
               ) : (
@@ -171,29 +171,29 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>الإجراءات السريعة</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-amber-400">الإجراءات السريعة</CardTitle>
+              <CardDescription className="text-purple-200">
                 الوصول السريع للوظائف الأساسية
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Link href="/leaders">
-                <Button className="w-full justify-start" variant="outline">
-                  <Users className="mr-2 h-4 w-4" />
+                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
+                  <Users className="mr-2 h-4 w-4 text-amber-300" />
                   إدارة القادة
                 </Button>
               </Link>
               <Link href="/individuals">
-                <Button className="w-full justify-start" variant="outline">
-                  <UserPlus className="mr-2 h-4 w-4" />
+                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
+                  <UserPlus className="mr-2 h-4 w-4 text-amber-300" />
                   إدارة الأفراد
                 </Button>
               </Link>
               <Link href="/leaders-tree">
-                <Button className="w-full justify-start" variant="outline">
-                  <Users className="mr-2 h-4 w-4" />
+                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
+                  <Users className="mr-2 h-4 w-4 text-amber-300" />
                   شجرة القادة
                 </Button>
               </Link>

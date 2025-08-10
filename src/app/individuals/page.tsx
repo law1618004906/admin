@@ -158,7 +158,7 @@ const IndividualsPage = () => {
 
   // Get unique station numbers
   const uniqueStations = useMemo(() => {
-    const stations = [...new Set(persons.map(p => p.station_number).filter(Boolean))];
+    const stations = [...new Set(persons.map(p => p.station_number).filter((station): station is string => Boolean(station)))];
     return stations.sort();
   }, [persons]);
 
@@ -293,24 +293,25 @@ const IndividualsPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6" dir="rtl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">إدارة الأفراد</h1>
-        <p className="text-gray-600">إدارة وعرض بيانات الأفراد والناخبين</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-slate-900 to-black p-6" dir="rtl">
+      <div className="container mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-amber-400 mb-2">إدارة الأفراد</h1>
+          <p className="text-purple-200">إدارة وعرض بيانات الأفراد والناخبين</p>
+        </div>
 
-      {/* Controls */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        {/* Controls */}
+        <div className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex flex-col lg:flex-row gap-4 mb-4">
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute right-3 top-3 h-4 w-4 text-purple-300" />
               <Input
                 placeholder="البحث في الاسم، الهاتف، أو جهة العمل..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pr-10"
+                className="pr-10 bg-purple-700/30 border-purple-600/50 text-white placeholder:text-purple-300"
               />
             </div>
           </div>
@@ -360,8 +361,8 @@ const IndividualsPage = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 ml-2" />
+          <Button onClick={openAddModal} className="bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
+            <Plus className="h-4 w-4 ml-2 text-amber-300" />
             إضافة فرد جديد
           </Button>
           
@@ -653,6 +654,7 @@ const IndividualsPage = () => {
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };

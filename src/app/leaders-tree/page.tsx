@@ -53,25 +53,25 @@ export default function LeadersTreePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-slate-900 to-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-slate-900 to-black text-white">
       {/* Header */}
-      <header className="bg-gray-900/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/15 rounded-xl shadow-lg">
+      <header className="bg-purple-800/30 backdrop-blur-xl border border-purple-600/30 rounded-xl shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">ش ج</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center">
+                <span className="text-black font-bold">ش ج</span>
               </div>
               <div className="mr-3">
-                <h1 className="text-xl font-semibold text-white">العرض الشجري للقادة</h1>
-                <p className="text-sm text-gray-300">قائد واحد وكل أفراده كتفرعات</p>
+                <h1 className="text-xl font-semibold text-amber-400">العرض الشجري للقادة</h1>
+                <p className="text-sm text-purple-200">قائد واحد وكل أفراده كتفرعات</p>
               </div>
             </div>
 
@@ -79,7 +79,7 @@ export default function LeadersTreePage() {
               <Button
                 variant="outline"
                 onClick={() => window.location.href = '/'}
-                className="border-white/15 bg-white/10 backdrop-blur-lg text-white hover:bg-white/15 rounded-xl"
+                className="border-purple-600/30 bg-purple-700/20 backdrop-blur-lg text-white hover:bg-purple-600/30 rounded-xl"
               >
                 <Home className="h-4 w-4 mr-2 text-white" />
                 الرئيسية
@@ -92,10 +92,10 @@ export default function LeadersTreePage() {
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Leaders List */}
-          <Card className="bg-gray-900/65 border border-white/15 backdrop-blur-xl rounded-xl">
+          <Card className="bg-purple-800/20 border border-purple-600/30 backdrop-blur-xl rounded-xl">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 space-x-reverse text-white">
-                <Users className="h-5 w-5 text-sky-400" />
+              <CardTitle className="flex items-center space-x-2 space-x-reverse text-amber-400">
+                <Users className="h-5 w-5 text-amber-300" />
                 <span>القادة</span>
               </CardTitle>
             </CardHeader>
@@ -136,7 +136,7 @@ export default function LeadersTreePage() {
           </Card>
 
           {/* Tree View */}
-          <Card className="lg:col-span-2 bg-gray-900/65 border border-white/15 backdrop-blur-xl rounded-xl">
+          <Card className="lg:col-span-2 bg-purple-800/20 border border-purple-600/30 backdrop-blur-xl rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2 space-x-reverse text-white">
                 <Users className="h-5 w-5 text-emerald-400" />
