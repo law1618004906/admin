@@ -3,9 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Users, UserPlus } from 'lucide-react';
 import LeaderPieChart from '@/components/LeaderPieChart';
+import { useAuth } from '@/hooks/use-auth';
 
 // نوع إحصائيات اللوحة
 type DashboardStats = {
@@ -16,6 +15,7 @@ type DashboardStats = {
 };
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -25,181 +25,227 @@ export default function HomePage() {
   const [chartErr, setChartErr] = useState<string | null>(null);
   const [chartData, setChartData] = useState<{ name: string; value: number; __percent?: number }[]>([]);
 
+  // إعادة توجيه للدخول إذا لم يكن المستخدم مسجل
   useEffect(() => {
+    // إضافة تأخير قصير لتجنب redirect loops أثناء تحميل auth
+    const timer = setTimeout(() => {
+      if (!authLoading && !user) {
+        console.log('Redirecting to login - user not authenticated');
+        window.location.href = '/login';
+        return;
+      }
+    }, 100); // تأخير 100ms لتجنب race conditions
+
+    return () => clearTimeout(timer);
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    // تحميل البيانات فقط إذا كان المستخدم مسجل الدخول
+    if (!user) return;
+    
     let mounted = true;
     setLoading(true);
     setChartLoading(true);
-    
-    fetch('/api/dashboard/stats', { cache: 'no-store' })
+    fetch('/api/dashboard/stats', { cache: 'no-store', credentials: 'include' })
       .then(async (res) => {
         if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+          }
           throw new Error(`HTTP ${res.status}`);
         }
         const json = (await res.json()) as DashboardStats;
         if (!mounted) return;
-        
         setStats({
-          totalLeaders: json.totalLeaders || 0,
-          totalPersons: json.totalPersons || 0,
-          totalVotes: json.totalVotes || 0,
-          leadersDistribution: json.leadersDistribution || []
-        });
+          totalLeaders: json.totalLeaders,
+          totalPersons: json.totalPersons,
+          totalVotes: json.totalVotes,
+          leadersDistribution: json.leadersDistribution,
+        } as any);
 
-        // إعداد بيانات الرسم البياني
-        if (json.leadersDistribution) {
-          const chartData = json.leadersDistribution.map((item) => ({
-            name: item.leaderName || 'غير محدد',
-            value: item.count,
-          }));
-          setChartData(chartData);
-        }
-        setLoading(false);
-        setChartLoading(false);
+        // اعداد بيانات الرسم من leadersDistribution
+        const dist = Array.isArray(json.leadersDistribution) ? json.leadersDistribution! : [];
+        let rows = dist.map(d => ({
+          name: d.leaderName || 'غير معلوم',
+          value: Number(d.count || 0),
+        }));
+        // في حال لا توجد بيانات، اجعل صفاً افتراضياً
+        if (!rows.length) rows = [{ name: 'غير معلوم', value: 0 }];
+
+        const total = rows.reduce((s, r) => s + (r.value || 0), 0);
+        const withPercent = rows.map(r => ({ ...r, __percent: total > 0 ? (r.value / total) * 100 : 0 }));
+        setChartData(withPercent);
+        setChartErr(null);
       })
-      .catch((error) => {
-        console.error('خطأ في تحميل الإحصائيات:', error);
+      .catch((e) => {
         if (!mounted) return;
-        setErr('فشل في تحميل الإحصائيات');
-        setChartErr('فشل في تحميل بيانات الرسم البياني');
+        setErr(e?.message || 'فشل الجلب');
+        setChartErr(e?.message || 'فشل جلب بيانات الرسم');
+      })
+      .finally(() => {
+        if (!mounted) return;
         setLoading(false);
         setChartLoading(false);
       });
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    return () => { mounted = false; };
+  }, [user]);
+
+  // إظهار حالة التحميل إذا كان التحقق من المصادقة قيد التحميل
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground">جاري التحقق من الهوية...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // إعادة توجيه للدخول إذا لم يكن مسجل
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">جاري التوجيه لصفحة تسجيل الدخول...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>جاري تحميل البيانات...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="text-destructive">حدث خطأ: {err}</div>
+          <Button onClick={() => window.location.reload()}>إعادة المحاولة</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-slate-900 to-black p-4 md:p-8" dir="rtl">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">
-            نظام إدارة القادة والأفراد
-          </h1>
-          <p className="text-purple-200">
-            لوحة المعلومات والإحصائيات
-          </p>
+    <div className="space-y-8 p-6">
+      {/* العنوان الرئيسي */}
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-foreground mb-2">لوحة التحكم</h1>
+        <p className="text-muted-foreground">مراقبة وإدارة البيانات</p>
+      </div>
+
+      {/* الإحصائيات */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* إجمالي القادة */}
+        <div className="bg-card/60 border border-border rounded-lg p-4 text-center hover:bg-card/80 transition-all duration-200 backdrop-blur-sm">
+          <div className="text-2xl font-bold text-primary mb-1">
+            {stats?.totalLeaders || 0}
+          </div>
+          <div className="text-sm text-muted-foreground">إجمالي القادة</div>
         </div>
 
-        {/* Stats Cards */}
-        {err ? (
-          <Card className="mb-8 bg-purple-800/20 border-purple-600/30">
-            <CardContent className="p-6">
-              <div className="text-center text-red-400">
-                <p className="font-semibold mb-2">خطأ في التحميل</p>
-                <p className="text-sm">{err}</p>
+        {/* إجمالي الأفراد */}
+        <div className="bg-card/60 border border-border rounded-lg p-4 text-center hover:bg-card/80 transition-all duration-200 backdrop-blur-sm">
+          <div className="text-2xl font-bold text-primary mb-1">
+            {stats?.totalPersons || 0}
+          </div>
+          <div className="text-sm text-muted-foreground">إجمالي الأفراد</div>
+        </div>
+
+        {/* إجمالي الأصوات */}
+        <div className="bg-card/60 border border-border rounded-lg p-4 text-center hover:bg-card/80 transition-all duration-200 backdrop-blur-sm">
+          <div className="text-2xl font-bold text-primary mb-1">
+            {stats?.totalVotes || 0}
+          </div>
+          <div className="text-sm text-muted-foreground">إجمالي الأصوات</div>
+        </div>
+      </div>
+
+      {/* الإجراءات السريعة */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link href="/individuals">
+          <div className="bg-card/40 hover:bg-card/70 border border-border rounded-lg p-4 cursor-pointer group transition-all duration-200 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-primary/20 border border-border rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
               </div>
-            </CardContent>
-          </Card>
+              <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                إدارة الأفراد
+              </h2>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              عرض وإدارة بيانات الأفراد، التحرير والبحث المتقدم
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/leaders">
+          <div className="bg-card/40 hover:bg-card/70 border border-border rounded-lg p-4 cursor-pointer group transition-all duration-200 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-primary/20 border border-border rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                إدارة القادة
+              </h2>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              عرض وإدارة بيانات القادة والإشراف على الفرق
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      {/* التوزيع الدائري للأفراد حسب القادة */}
+      <div className="bg-card/30 border border-border rounded-lg p-6 backdrop-blur-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-8 h-8 bg-primary/20 border border-border rounded-lg flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            التوزيع الدائري للأفراد حسب القادة
+          </h2>
+        </div>
+        <div className="text-center text-muted-foreground text-sm mb-4">
+          اضغط على أي جزء من الرسم لعرض التفاصيل
+        </div>
+        
+        {chartLoading ? (
+          <div className="h-64 flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
+              <span className="text-muted-foreground">جاري تحميل البيانات...</span>
+            </div>
+          </div>
+        ) : chartErr ? (
+          <div className="h-64 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-destructive mb-2">⚠️ خطأ في تحميل الرسم البياني</div>
+              <div className="text-sm text-muted-foreground">{chartErr}</div>
+            </div>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-amber-400">إجمالي القادة</CardTitle>
-                <Users className="h-4 w-4 text-amber-300" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stats?.totalLeaders || 0}</div>
-                <p className="text-xs text-purple-200">
-                  عدد القادة المسجلين في النظام
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-amber-400">إجمالي الأفراد</CardTitle>
-                <UserPlus className="h-4 w-4 text-amber-300" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stats?.totalPersons || 0}</div>
-                <p className="text-xs text-purple-200">
-                  عدد الأفراد المسجلين في النظام
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-amber-400">إجمالي الأصوات</CardTitle>
-                <Users className="h-4 w-4 text-amber-300" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stats?.totalVotes || 0}</div>
-                <p className="text-xs text-purple-200">
-                  مجموع الأصوات لجميع القادة والأفراد
-                </p>
-              </CardContent>
-            </Card>
+          <div className="bg-background/50 border border-border rounded-lg p-4">
+            <LeaderPieChart data={chartData} />
           </div>
         )}
-
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-amber-400">توزيع الأفراد حسب القادة</CardTitle>
-              <CardDescription className="text-purple-200">
-                عرض توزيع الأفراد على القادة المختلفين
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {chartLoading ? (
-                <div className="flex items-center justify-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
-                </div>
-              ) : chartErr ? (
-                <div className="text-center text-red-400 h-64 flex items-center justify-center">
-                  <p>{chartErr}</p>
-                </div>
-              ) : (
-                <LeaderPieChart data={chartData} />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-purple-800/20 border-purple-600/30 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-amber-400">الإجراءات السريعة</CardTitle>
-              <CardDescription className="text-purple-200">
-                الوصول السريع للوظائف الأساسية
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Link href="/leaders">
-                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
-                  <Users className="mr-2 h-4 w-4 text-amber-300" />
-                  إدارة القادة
-                </Button>
-              </Link>
-              <Link href="/individuals">
-                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
-                  <UserPlus className="mr-2 h-4 w-4 text-amber-300" />
-                  إدارة الأفراد
-                </Button>
-              </Link>
-              <Link href="/leaders-tree">
-                <Button className="w-full justify-start bg-purple-700 hover:bg-purple-600 text-white border-purple-600">
-                  <Users className="mr-2 h-4 w-4 text-amber-300" />
-                  شجرة القادة
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );

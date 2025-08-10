@@ -62,15 +62,10 @@ function toPlainNumber(value: unknown): any {
 
 // GET all leaders
 export async function GET(request: NextRequest) {
-  // فحص المصادقة
-  const authError = await requireAuth(request);
-  if (authError) {
-    return authError;
-  }
-
-  try {
-    const { searchParams } = new URL(request.url);
-    const search = (searchParams.get('search') || '').trim();
+  return requireAuth(async (request, user) => {
+    try {
+      const { searchParams } = new URL(request.url);
+      const search = (searchParams.get('search') || '').trim();
 
       const leaders = await prisma.leaders.findMany({
         orderBy: { id: 'desc' },
@@ -155,21 +150,17 @@ export async function GET(request: NextRequest) {
         }
       }
       return NextResponse.json({ success: true, data: plain });
-  } catch (error) {
-    console.error('Error fetching leaders:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+    } catch (error) {
+      console.error('Error fetching leaders:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  })(request);
 }
 
 // POST create new leader
 export async function POST(request: NextRequest) {
-  // فحص المصادقة
-  const authError = await requireAuth(request);
-  if (authError) {
-    return authError;
-  }
-
-  try {
+  return requireAuth(async (request, user) => {
+    try {
       const body = await request.json();
       const {
         full_name,
@@ -248,8 +239,9 @@ export async function POST(request: NextRequest) {
         message: 'Leader created successfully',
         data: payload,
       });
-  } catch (error) {
-    console.error('Error creating leader:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+    } catch (error) {
+      console.error('Error creating leader:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  })(request);
 }

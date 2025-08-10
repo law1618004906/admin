@@ -4,16 +4,13 @@ import { db } from '@/lib/db';
 
 // Generate campaign summary report
 export async function POST(request: NextRequest) {
-  try {
-    // التحقق من المصادقة والصلاحيات
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return requireAuth(async (request, user) => {
+    if (!requirePermission('reports.create')(request, user)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
-    
-    // سنتجاهل فحص الصلاحيات لأن المستخدم الدائم له صلاحيات كاملة
-    
-    const body = await request.json();
+
+    try {
+      const body = await request.json();
       const { campaignId, period } = body;
 
       // Get campaign data
@@ -154,67 +151,66 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+  })(request);
 }
 
 // Get all reports
 export async function GET(request: NextRequest) {
-  try {
-    // التحقق من المصادقة والصلاحيات
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return requireAuth(async (request, user) => {
+    if (!requirePermission('reports.read')(request, user)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
-    
-    // سنتجاهل فحص الصلاحيات لأن المستخدم الدائم له صلاحيات كاملة
 
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const type = searchParams.get('type');
-    const campaignId = searchParams.get('campaignId');
+    try {
+      const { searchParams } = new URL(request.url);
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '10');
+      const type = searchParams.get('type');
+      const campaignId = searchParams.get('campaignId');
 
-    const skip = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (type) where.type = type;
-    if (campaignId) where.campaignId = campaignId;
+      const where: any = {};
+      if (type) where.type = type;
+      if (campaignId) where.campaignId = campaignId;
 
-    const [reports, total] = await Promise.all([
-      db.report.findMany({
-        where,
-        include: {
-          campaign: {
-            select: {
-              id: true,
-              title: true,
-              titleAr: true,
+      const [reports, total] = await Promise.all([
+        db.report.findMany({
+          where,
+          include: {
+            campaign: {
+              select: {
+                id: true,
+                title: true,
+                titleAr: true,
+              },
             },
           },
-        },
-        skip,
-        take: limit,
-        orderBy: { generatedAt: 'desc' },
-      }),
-      db.report.count({ where }),
-    ]);
+          skip,
+          take: limit,
+          orderBy: { generatedAt: 'desc' },
+        }),
+        db.report.count({ where }),
+      ]);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        reports,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
+      return NextResponse.json({
+        success: true,
+        data: {
+          reports,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+          },
         },
-      },
-    });
-  } catch (error) {
-    console.error('Get reports error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+      });
+    } catch (error) {
+      console.error('Get reports error:', error);
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  })(request);
 }

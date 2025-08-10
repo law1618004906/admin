@@ -38,6 +38,7 @@ type IndividualsResponse = {
     nextCursor: string | null;
     pageSize: number;
   };
+  total?: number;
   meta?: {
     metrics: Metrics;
   };
@@ -72,12 +73,10 @@ function mapPerson(p: any): PersonPayload {
 
 // GET all individuals - مع Keyset Pagination + فلاتر - Prisma
 export async function GET(request: NextRequest) {
-  try {
-    // التحقق من المصادقة
-    await requireAuth(request);
-    
+  return requireAuth(async (req, _user) => {
     const t0 = Date.now();
-    const { searchParams } = new URL(request.url);
+    try {
+      const { searchParams } = new URL(req.url);
 
       // فلاتر
       const q = (searchParams.get('q') || '').trim(); // بحث عام: الاسم/السكن/المركز/الهاتف
@@ -129,6 +128,10 @@ export async function GET(request: NextRequest) {
       }
 
       const q0 = Date.now();
+      
+      // جلب إجمالي العدد أولاً
+      const totalCount = await db.persons.count({ where });
+      
       const personsPlusOne = await db.persons.findMany({
         where,
         orderBy: [{ [sortBy]: sortDir }, { id: 'desc' }], // tie-break لضمان ترتيب ثابت
@@ -180,6 +183,7 @@ export async function GET(request: NextRequest) {
         success: true,
         data,
         page: { hasNext, nextCursor, pageSize },
+        total: totalCount,
         meta: { metrics },
       };
 
@@ -188,15 +192,14 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching individuals:', error);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
+  })(request);
 }
 
 // POST create new individual - Prisma
 export async function POST(request: NextRequest) {
-  try {
-    // التحقق من المصادقة
-    await requireAuth(request);
-    
-    const body = await request.json();
+  return requireAuth(async (req, _user) => {
+    try {
+      const body = await req.json();
       const {
         leader_name,
         full_name,
@@ -252,4 +255,5 @@ export async function POST(request: NextRequest) {
       console.error('Error creating individual:', error);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
+  })(request);
 }

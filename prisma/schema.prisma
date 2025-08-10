@@ -40,3 +40,13 @@ model persons {
   @@index([leader_name, id], map: "idx_persons_leader_name_id")
   @@index([phone], map: "phone_idx")
 }
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String?
+  role      String   @default("ADMIN")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

@@ -1,8 +1,0 @@
--- CreateTable
-CREATE TABLE "Area" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "title" TEXT NOT NULL,
-    "titleAr" TEXT,
-    "campaignId" INTEGER,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);

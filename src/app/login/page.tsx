@@ -1,211 +1,191 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Lock, Eye, EyeOff } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
+  const { login, user, loading } = useAuth();
+  const [redirected, setRedirected] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // إذا كان المستخدم مسجل دخول بالفعل، وجهه للصفحة الرئيسية
+  useEffect(() => {
+    if (user && !redirected) {
+      setRedirected(true);
+      router.push('/');
+    }
+  }, [user, router, redirected]);
+
+  // إذا كان التطبيق لا يزال يحمل، لا تعرض شيء
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-foreground">جارِ التحميل...</div>
+    </div>;
+  }
+
+  // إذا كان المستخدم مسجل دخول، لا تعرض صفحة تسجيل الدخول
+  if (user) {
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
+    setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.ok) {
+      const success = await login(username, password);
+      if (success) {
         router.push('/');
-        router.refresh();
       } else {
-        toast({
-          title: "خطأ في تسجيل الدخول",
-          description: "اسم المستخدم أو كلمة المرور غير صحيحة",
-          variant: "destructive",
-        });
+        setError('بيانات الدخول غير صحيحة');
       }
     } catch (error) {
-      toast({
-        title: "خطأ",
-        description: "حدث خطأ في الاتصال",
-        variant: "destructive",
-      });
+      setError('حدث خطأ أثناء تسجيل الدخول');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" dir="rtl">
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        {/* Main background image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: "url('/background.png')"
-          }}
-        ></div>
-        
-        {/* Overlay for better contrast and readability */}
-                {/* Overlay for better contrast and readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/70"></div>
-      </div>
+    <div className="fixed inset-0 w-full h-screen flex items-center justify-center overflow-hidden bg-background" dir="rtl">
+      {/* خلفية الصورة مع تأثير خفيف */}
+      <div 
+        className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat opacity-20"
+        style={{
+          backgroundImage: 'url(/background.png)',
+        }}
+      ></div>
+      
+      <div className="flex flex-col items-center w-full max-w-lg px-6 relative z-10">
+        {/* قسم اللوجو والعناوين */}
+        <div className="text-center mb-6 bg-card/40 backdrop-blur-md rounded-2xl p-6 border border-border shadow-2xl w-full">
+          {/* اللوجو */}
+          <div className="mb-4">
+            <img 
+              src="/logo-official.png" 
+              alt="شعار جمهورية العراق" 
+              className="mx-auto h-16 w-16 md:h-20 md:w-20 object-contain drop-shadow-lg"
+            />
+          </div>
+          
+          {/* جمهورية العراق */}
+          <h1 className="text-foreground text-lg md:text-xl font-bold mb-2 tracking-wide">
+            جمهورية العراق
+          </h1>
+          
+          {/* مكتب النائب */}
+          <h2 className="text-foreground/90 text-base md:text-lg font-semibold leading-relaxed">
+            مكتب النائب علي جاسم الحميداوي
+          </h2>
+        </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md">
-          {/* Official Header */}
-          <div className="text-center mb-8">
-            {/* Iraqi Eagle Emblem */}
-            <div className="w-32 h-32 mx-auto mb-6 relative">
-              <img 
-                src="/shar1.png" 
-                alt="شعار جمهورية العراق"
-                className="w-full h-full object-contain drop-shadow-2xl"
+        {/* بطاقة تسجيل الدخول */}
+        <Card className="w-full backdrop-blur-md bg-card/50 border border-border shadow-2xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto w-16 h-16 bg-primary/20 border border-border rounded-full flex items-center justify-center mb-4 shadow-lg">
+              <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          <CardTitle className="text-2xl font-bold text-foreground">
+            تسجيل الدخول
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            أدخل بياناتك للوصول لنظام الإدارة الانتخابية
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-foreground font-medium">
+                اسم المستخدم
+              </Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="أدخل اسم المستخدم"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className="text-right bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/50 backdrop-blur-sm"
+                disabled={isLoading}
               />
             </div>
-
-            {/* Official Text */}
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold text-amber-400 mb-2 tracking-wide">
-                جمهورية العراق
-              </h1>
-              <div className="w-32 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-3"></div>
-              
-              {/* شعار "الله أكبر" */}
-              <div className="text-center mb-3">
-                <p className="text-amber-300 text-lg font-bold tracking-widest">
-                  الله أكبر
-                </p>
-                <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent mx-auto mt-1"></div>
-              </div>
-              
-              <h2 className="text-lg font-semibold text-amber-300 mb-1">
-                مكتب النائب
-              </h2>
-              <h3 className="text-xl font-bold text-white">
-                علي جاسم الحميداوي
-              </h3>
-            </div>
-          </div>
-
-          {/* Login Card */}
-          <Card className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl">
-            <CardContent className="p-8">
-              <div className="text-center mb-6">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="p-3 rounded-full bg-amber-500/20 backdrop-blur-sm">
-                    <Lock className="h-6 w-6 text-amber-400" />
-                  </div>
-                </div>
-                <h4 className="text-xl font-bold text-white mb-2">
-                  تسجيل الدخول
-                </h4>
-                <p className="text-white/70 text-sm">
-                  نظام إدارة القادة والأفراد
-                </p>
-              </div>
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    اسم المستخدم
-                  </label>
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="أدخل اسم المستخدم"
-                    required
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 backdrop-blur-sm focus:border-amber-400 focus:ring-amber-400 text-right"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-white/90 text-sm font-medium mb-2">
-                    كلمة المرور
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="أدخل كلمة المرور"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 backdrop-blur-sm focus:border-amber-400 focus:ring-amber-400 text-right pr-12"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-foreground font-medium">
+                كلمة المرور
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="أدخل كلمة المرور"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="text-right pr-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/50 backdrop-blur-sm"
+                  disabled={isLoading}
+                />
                 <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 border-0"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-0 top-0 h-full px-3 hover:bg-accent text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      جاري التحقق...
-                    </div>
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    'دخول'
+                    <Eye className="h-4 w-4" />
                   )}
                 </Button>
-              </form>
-
-              {/* Footer info */}
-              <div className="mt-6 pt-4 border-t border-white/10">
-                <p className="text-center text-white/60 text-xs">
-                  نظام آمن ومحمي
-                </p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Additional governmental styling */}
-          <div className="text-center mt-6">
-            <div className="flex items-center justify-center gap-2 text-white/50 text-xs">
-              <div className="w-8 h-px bg-gradient-to-r from-transparent to-white/30"></div>
-              <span>مكتب النائب علي جاسم الحميداوي</span>
-              <div className="w-8 h-px bg-gradient-to-l from-transparent to-white/30"></div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Decorative elements */}
-      <div className="absolute top-4 left-4 opacity-20">
-        <div className="w-16 h-16 border border-amber-400/30 rounded-full"></div>
-      </div>
-      <div className="absolute bottom-4 right-4 opacity-20">
-        <div className="w-12 h-12 border border-amber-400/30 rounded-full"></div>
-      </div>
-      <div className="absolute top-1/4 right-8 opacity-10">
-        <div className="w-20 h-20 border border-white/20 rotate-45"></div>
+            {error && (
+              <Alert variant="destructive" className="bg-destructive/20 border-destructive/50 backdrop-blur-sm">
+                <AlertDescription className="text-destructive-foreground text-right">
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+            <Button 
+              type="submit" 
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 shadow-lg transition-all duration-200 transform hover:scale-[1.02]" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  جاري تسجيل الدخول...
+                </>
+              ) : (
+                'تسجيل الدخول'
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="text-center">
+          <p className="text-sm text-muted-foreground w-full">
+            نظام إدارة البيانات الانتخابية
+            <br />
+            <span className="text-xs text-muted-foreground/80">مطور بعناية للعمليات الديمقراطية</span>
+          </p>
+        </CardFooter>
+      </Card>
       </div>
     </div>
   );

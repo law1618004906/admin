@@ -45,65 +45,95 @@
 
 /* فرض قيم آمنة للثيم لضمان عودة الألوان حتى مع تعطل preset */
 :root {
-  --background: oklch(20% 0.02 270);
-  --foreground: oklch(96% 0.01 270);
+  /* خلفية بنفسجية غامقة تميل للسواد */
+  --background: oklch(12% 0.05 280);
+  --foreground: oklch(98% 0.01 0);
 
-  --card: oklch(22% 0.02 270);
-  --card-foreground: var(--foreground);
+  /* بطاقات بنفسجية غامقة مع شفافية */
+  --card: oklch(16% 0.04 285);
+  --card-foreground: oklch(98% 0.01 0);
 
-  --popover: oklch(24% 0.02 270);
-  --popover-foreground: var(--foreground);
+  /* منبثقات */
+  --popover: oklch(15% 0.04 280);
+  --popover-foreground: oklch(98% 0.01 0);
 
-  --primary: oklch(55% 0.16 280); /* بنفسجي-مزرق */
-  --primary-foreground: oklch(98% 0.01 280);
+  /* اللون الأساسي بنفسجي */
+  --primary: oklch(65% 0.18 285);
+  --primary-foreground: oklch(98% 0.01 0);
 
-  --secondary: oklch(35% 0.03 270);
-  --secondary-foreground: var(--foreground);
+  /* ثانوي */
+  --secondary: oklch(20% 0.03 280);
+  --secondary-foreground: oklch(98% 0.01 0);
 
-  --muted: oklch(30% 0.02 270);
-  --muted-foreground: oklch(80% 0.02 270);
+  /* مكتوم */
+  --muted: oklch(18% 0.03 280);
+  --muted-foreground: oklch(75% 0.02 0);
 
-  --accent: oklch(40% 0.04 280);
-  --accent-foreground: var(--foreground);
+  /* تحديد */
+  --accent: oklch(25% 0.05 285);
+  --accent-foreground: oklch(98% 0.01 0);
 
-  --destructive: oklch(50% 0.12 25);
-  --destructive-foreground: oklch(98% 0.005 25);
+  /* تدميري */
+  --destructive: oklch(55% 0.15 20);
+  --destructive-foreground: oklch(98% 0.01 0);
 
-  --border: oklch(35% 0.02 270);
-  --input: var(--border);
-  --ring: oklch(60% 0.16 280);
+  /* حدود بيضاء شفافة جداً */
+  --border: oklch(98% 0.01 0 / 0.15);
+  --input: oklch(98% 0.01 0 / 0.12);
+  --ring: oklch(65% 0.18 285);
 
   --radius: 0.6rem;
+
+  /* ألوان الشريط الجانبي */
+  --sidebar: oklch(14% 0.04 280);
+  --sidebar-foreground: oklch(98% 0.01 0);
+  --sidebar-primary: oklch(65% 0.18 285);
+  --sidebar-primary-foreground: oklch(98% 0.01 0);
+  --sidebar-accent: oklch(20% 0.03 280);
+  --sidebar-accent-foreground: oklch(98% 0.01 0);
+  --sidebar-border: oklch(98% 0.01 0 / 0.12);
+  --sidebar-ring: oklch(65% 0.18 285);
 }
 
 .dark {
-  --background: oklch(17% 0.02 270);
-  --foreground: oklch(95% 0.01 270);
+  /* نفس القيم للوضع المظلم */
+  --background: oklch(12% 0.05 280);
+  --foreground: oklch(98% 0.01 0);
 
-  --card: oklch(20% 0.02 270);
-  --card-foreground: var(--foreground);
+  --card: oklch(16% 0.04 285);
+  --card-foreground: oklch(98% 0.01 0);
 
-  --popover: oklch(22% 0.02 270);
-  --popover-foreground: var(--foreground);
+  --popover: oklch(15% 0.04 280);
+  --popover-foreground: oklch(98% 0.01 0);
 
-  --primary: oklch(58% 0.16 280);
-  --primary-foreground: oklch(98% 0.01 280);
+  --primary: oklch(65% 0.18 285);
+  --primary-foreground: oklch(98% 0.01 0);
 
-  --secondary: oklch(32% 0.03 270);
-  --secondary-foreground: var(--foreground);
+  --secondary: oklch(20% 0.03 280);
+  --secondary-foreground: oklch(98% 0.01 0);
 
-  --muted: oklch(28% 0.02 270);
-  --muted-foreground: oklch(82% 0.02 270);
+  --muted: oklch(18% 0.03 280);
+  --muted-foreground: oklch(75% 0.02 0);
 
-  --accent: oklch(38% 0.05 280);
-  --accent-foreground: var(--foreground);
+  --accent: oklch(25% 0.05 285);
+  --accent-foreground: oklch(98% 0.01 0);
 
-  --destructive: oklch(50% 0.12 25);
-  --destructive-foreground: oklch(98% 0.005 25);
+  --destructive: oklch(55% 0.15 20);
+  --destructive-foreground: oklch(98% 0.01 0);
 
-  --border: oklch(33% 0.02 270);
-  --input: var(--border);
-  --ring: oklch(62% 0.16 280);
+  --border: oklch(98% 0.01 0 / 0.15);
+  --input: oklch(98% 0.01 0 / 0.12);
+  --ring: oklch(65% 0.18 285);
+
+  /* ألوان الشريط الجانبي */
+  --sidebar: oklch(14% 0.04 280);
+  --sidebar-foreground: oklch(98% 0.01 0);
+  --sidebar-primary: oklch(65% 0.18 285);
+  --sidebar-primary-foreground: oklch(98% 0.01 0);
+  --sidebar-accent: oklch(20% 0.03 280);
+  --sidebar-accent-foreground: oklch(98% 0.01 0);
+  --sidebar-border: oklch(98% 0.01 0 / 0.12);
+  --sidebar-ring: oklch(65% 0.18 285);
 }
 
 /* ضمان ملء الارتفاع والتلوين لكل الجذور */

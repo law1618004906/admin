@@ -1,49 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { PERMANENT_USER_CONFIG } from '@/lib/permanent-auth';
+import { z } from 'zod';
+import { generateCsrfToken, setCsrfCookie } from '@/lib/csrf';
+import { checkRateLimit, resetRateLimit } from '@/lib/rate-limit';
 
-// المستخدم الوحيد والدائم مع صلاحيات root كاملة
-// هذا المستخدم محفوظ بشكل دائم وغير موقت في النظام
-const ADMIN_USERNAME = PERMANENT_USER_CONFIG.username; // المستخدم الوحيد والدائم - غير قابل للحذف
-const ADMIN_PASSWORD = PERMANENT_USER_CONFIG.password; // كلمة المرور الثابتة
+// قائمة المدراء المسموح لهم بالدخول
+import { authenticateUser, generateToken } from '@/lib/auth';
+
+const loginSchema = z.object({
+  username: z.string().min(1, 'اسم المستخدم مطلوب'),
+  password: z.string().min(1, 'كلمة السر مطلوبة'),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
+    const body = await request.json();
+    const { username, password } = loginSchema.parse(body);
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      // إنشاء session token مع صلاحيات root كاملة
-      const sessionToken = 'root-admin-فقار-' + Date.now();
-      
-      // حفظ في cookies مع صلاحيات كاملة - جلسة دائمة
-      const cookieStore = await cookies();
-      cookieStore.set('admin-session', sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: PERMANENT_USER_CONFIG.sessionDuration, // جلسة دائمة (سنة كاملة)
-        path: '/'
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        user: { 
-          username: PERMANENT_USER_CONFIG.username, 
-          role: PERMANENT_USER_CONFIG.role, 
-          permissions: PERMANENT_USER_CONFIG.permissions 
-        }
-      });
-    } else {
+    // التحقق من Rate Limiting
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `login:${clientIP}:${username}`;
+    const rateCheck = checkRateLimit(rateLimitKey);
+    
+    if (!rateCheck.allowed) {
       return NextResponse.json(
-        { error: 'بيانات تسجيل الدخول غير صحيحة. المستخدم الوحيد هو: فقار' },
+        { 
+          error: `تم تجاوز عدد محاولات تسجيل الدخول. حاول مرة أخرى بعد ${rateCheck.timeLeft} ثانية`,
+          timeLeft: rateCheck.timeLeft 
+        },
+        { status: 429 }
+      );
+    }
+
+    // التحقق من المستخدم عبر الدالة المركزية
+    const user = await authenticateUser(username, password);
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'بيانات الاعتماد غير صحيحة' },
         { status: 401 }
       );
     }
+
+    // إعادة تعيين rate limit عند نجاح تسجيل الدخول
+    resetRateLimit(rateLimitKey);
+
+    // إنشاء توكن بسيط
+    const token = generateToken({
+      userId: user.id,
+      username: user.username,
+      role: user.role || 'ADMIN',
+    });
+
+    // أنشئ الاستجابة ثم عيّن كوكي الجلسة (__Host-session) + كوكي CSRF
+    const response = NextResponse.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role || 'ADMIN',
+      },
+    });
+
+    const secure = request.nextUrl.protocol === 'https:';
+    // Use Host prefix only on HTTPS; in HTTP dev, use a normal cookie name
+    const sessionCookieName = secure ? '__Host-session' : 'session';
+    response.cookies.set(sessionCookieName, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      // آمن فقط عند https لضمان عمله محليًا على http
+      secure,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 أيام
+    });
+
+    // CSRF cookie (double-submit): readable cookie + header validation on unsafe methods
+    const csrf = generateCsrfToken();
+    setCsrfCookie(response, csrf, secure);
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'خطأ في الخادم' },
-      { status: 500 }
+      { error: 'بيانات الاعتماد غير صحيحة' },
+      { status: 401 }
     );
   }
 }
