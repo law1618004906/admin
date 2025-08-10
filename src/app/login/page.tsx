@@ -77,20 +77,50 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Official Header */}
           <div className="text-center mb-8">
-            {/* Iraqi Eagle (Saladin's Eagle) - SVG representation */}
-            <div className="relative mx-auto mb-6 w-24 h-24 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 shadow-2xl"></div>
+            {/* Iraqi Eagle (Saladin's Eagle) - الشعار الحقيقي لجمهورية العراق */}
+            <div className="relative mx-auto mb-6 w-28 h-28 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 shadow-2xl opacity-20"></div>
               <svg 
-                className="relative z-10 w-16 h-16 text-amber-900" 
-                viewBox="0 0 100 100" 
+                className="relative z-10 w-20 h-20 text-amber-400" 
+                viewBox="0 0 200 200" 
                 fill="currentColor"
               >
-                {/* Simplified Eagle representation */}
-                <path d="M50 10 C45 10, 40 15, 40 20 L40 35 C35 40, 30 45, 30 50 C30 55, 35 60, 40 65 L40 80 C40 85, 45 90, 50 90 C55 90, 60 85, 60 80 L60 65 C65 60, 70 55, 70 50 C70 45, 65 40, 60 35 L60 20 C60 15, 55 10, 50 10 Z"/>
-                <path d="M30 50 C25 45, 20 50, 25 55 C30 55, 30 50, 30 50 Z"/>
-                <path d="M70 50 C75 45, 80 50, 75 55 C70 55, 70 50, 70 50 Z"/>
-                <circle cx="45" cy="35" r="3" className="text-red-800"/>
-                <circle cx="55" cy="35" r="3" className="text-red-800"/>
+                {/* عقاب صلاح الدين الأيوبي - الشعار الرسمي */}
+                {/* الجسم الرئيسي للعقاب */}
+                <path d="M100 40 C90 35, 80 40, 75 50 L75 70 C70 75, 65 80, 65 90 C65 100, 70 110, 75 120 L75 150 C75 160, 85 170, 100 170 C115 170, 125 160, 125 150 L125 120 C130 110, 135 100, 135 90 C135 80, 130 75, 125 70 L125 50 C120 40, 110 35, 100 40 Z" stroke="currentColor" strokeWidth="2"/>
+                
+                {/* الأجنحة المفرودة */}
+                <path d="M65 90 C50 85, 35 90, 25 100 C20 105, 25 110, 35 108 C45 106, 55 100, 65 95 Z"/>
+                <path d="M135 90 C150 85, 165 90, 175 100 C180 105, 175 110, 165 108 C155 106, 145 100, 135 95 Z"/>
+                
+                {/* الجناح الأيسر العلوي */}
+                <path d="M75 70 C60 65, 45 70, 35 80 C30 85, 35 90, 45 88 C55 86, 65 80, 75 75 Z"/>
+                
+                {/* الجناح الأيمن العلوي */}
+                <path d="M125 70 C140 65, 155 70, 165 80 C170 85, 165 90, 155 88 C145 86, 135 80, 125 75 Z"/>
+                
+                {/* العينان */}
+                <circle cx="90" cy="60" r="4" className="text-red-600" fill="currentColor"/>
+                <circle cx="110" cy="60" r="4" className="text-red-600" fill="currentColor"/>
+                
+                {/* المنقار */}
+                <path d="M100 70 L95 80 L100 75 L105 80 Z" className="text-yellow-600" fill="currentColor"/>
+                
+                {/* الذيل */}
+                <path d="M85 150 L80 170 L90 165 L100 170 L110 165 L120 170 L115 150" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                
+                {/* المخالب */}
+                <path d="M85 165 L82 175 M90 167 L87 177 M95 168 L92 178" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M105 168 L108 178 M110 167 L113 177 M115 165 L118 175" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                
+                {/* النص العربي داخل الشعار */}
+                <text x="100" y="130" textAnchor="middle" className="text-[8px] font-bold fill-amber-300">
+                  الله أكبر
+                </text>
+                
+                {/* الزخرفة الإسلامية */}
+                <circle cx="100" cy="100" r="45" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+                <circle cx="100" cy="100" r="35" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.2"/>
               </svg>
             </div>
 
