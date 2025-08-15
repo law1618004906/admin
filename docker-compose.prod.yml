@@ -13,7 +13,7 @@ services:
       # IMPORTANT: set a strong secret in real env
       SESSION_SECRET: ${SESSION_SECRET:-change-me-please}
       # Persist SQLite DB on host via volume mapping
-      DATABASE_URL: ${DATABASE_URL:-file:/app/prisma-data/dev.db}
+      DATABASE_URL: ${DATABASE_URL:-file:/app/prisma-data/production.db}
     ports:
       - "127.0.0.1:37693:3000"
     volumes:

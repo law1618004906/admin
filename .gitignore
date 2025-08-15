@@ -135,6 +135,6 @@ __pycache__/
 # Database files (local development)
 *.sqlite
 *.db
-prisma/dev.db
+# prisma/dev.db - تم حذفه بعد توحيد القواعد
 prisma/**/*.db
 prisma/**/*.sqlite

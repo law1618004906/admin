@@ -4,7 +4,7 @@ BACKUP_FILE="database_backup_$DATE.sqlite"
 
 # تنزيل قاعدة البيانات من التطبيق
 echo "📥 تنزيل قاعدة البيانات..."
-az webapp ssh --resource-group "end-rg" --name "end-admin-app-1754695871" --slot production --command "cp /app/prisma/dev.db /tmp/backup.db"
+az webapp ssh --resource-group "end-rg" --name "end-admin-app-1754695871" --slot production --command "cp /app/prisma-data/production.db /tmp/backup.db"
 
 # رفع قاعدة البيانات إلى Azure Storage
 echo "☁️ رفع النسخة الاحتياطي إلى Azure Storage..."
