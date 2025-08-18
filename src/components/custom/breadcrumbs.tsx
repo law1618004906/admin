@@ -24,7 +24,7 @@ export default function Breadcrumbs() {
   return (
     <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-4" dir="rtl">
       <Link href="/" className="flex items-center hover:text-foreground">
-        <Home className="h-4 w-4 ml-1" />
+        <Home className="h-4 w-4 ml-1" suppressHydrationWarning />
         الرئيسية
       </Link>
       
@@ -35,7 +35,7 @@ export default function Breadcrumbs() {
         
         return (
           <div key={path} className="flex items-center">
-            <ChevronRight className="h-4 w-4 mx-2 text-muted-foreground/60" />
+            <ChevronRight className="h-4 w-4 mx-2 text-muted-foreground/60" suppressHydrationWarning />
             {isLast ? (
               <span className="text-foreground font-medium">{name}</span>
             ) : (

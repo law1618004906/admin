@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   User, 
   Users, 
@@ -14,8 +16,11 @@ import {
   Phone,
   MapPin,
   Building,
-  Vote
+  Vote,
+  Search,
+  Eye
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -47,6 +52,21 @@ export default function LeadersTreePage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [inspectLeader, setInspectLeader] = useState<TreeNode | null>(null);
+  const [personOpen, setPersonOpen] = useState(false);
+  const [personSaving, setPersonSaving] = useState(false);
+  const [personData, setPersonData] = useState<{
+    id: number;
+    full_name: string;
+    leader_name: string | null;
+    residence: string | null;
+    phone: string | null;
+    workplace: string | null;
+    center_info: string | null;
+    station_number: string | null;
+    votes_count: number;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -98,6 +118,101 @@ export default function LeadersTreePage() {
   const selectNode = (node: TreeNode) => {
     setSelectedNode(node);
     setSelectedNodeId(node.id);
+  };
+
+  const openInspect = (node: TreeNode) => {
+    if (node.type !== 'leader') return;
+    setInspectLeader(node);
+    setInspectOpen(true);
+  };
+
+  const openPerson = (child: TreeNode) => {
+    // child.id قد يكون string
+    const idNum = Number(child.id);
+    setPersonData({
+      id: Number.isFinite(idNum) ? idNum : 0,
+      full_name: child.details?.full_name || child.label,
+      leader_name: inspectLeader?.label || null,
+      residence: child.details?.residence ?? null,
+      phone: child.details?.phone ?? null,
+      workplace: child.details?.workplace ?? null,
+      center_info: child.details?.center_info ?? null,
+      station_number: child.details?.station_number ?? null,
+      votes_count: typeof child.votes === 'number' ? child.votes : 0,
+    });
+    setPersonOpen(true);
+  };
+
+  const updatePersonField = (key: keyof NonNullable<typeof personData>, val: any) => {
+    if (!personData) return;
+    setPersonData({ ...personData, [key]: val });
+  };
+
+  const autoSavePerson = async () => {
+    if (!personData || !personData.id) return;
+    try {
+      setPersonSaving(true);
+      const res = await fetch('/api/individuals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(personData),
+      });
+      if (!res.ok) throw new Error('failed');
+      // انعكاس التحديث داخل قائمة الأعضاء داخل النافذة
+      const updated = await res.json();
+      const d = updated?.data;
+      if (inspectLeader && inspectLeader.children) {
+        const nextChildren = inspectLeader.children.map((c) => {
+          if (Number(c.id) === personData.id) {
+            return {
+              ...c,
+              label: d?.full_name ?? personData.full_name,
+              votes: d?.votes_count ?? personData.votes_count,
+              details: {
+                ...(c.details || {}),
+                full_name: d?.full_name ?? personData.full_name,
+                phone: d?.phone ?? personData.phone ?? undefined,
+                residence: d?.residence ?? personData.residence ?? undefined,
+                workplace: d?.workplace ?? personData.workplace ?? undefined,
+                center_info: d?.center_info ?? personData.center_info ?? undefined,
+                station_number: d?.station_number ?? personData.station_number ?? undefined,
+              },
+            } as TreeNode;
+          }
+          return c;
+        });
+        setInspectLeader({ ...inspectLeader, children: nextChildren });
+      }
+    } catch (e) {
+      console.error('Auto-save failed', e);
+    } finally {
+      setPersonSaving(false);
+    }
+  };
+
+  const deletePerson = async () => {
+    if (!personData?.id) return;
+    const ok = window.confirm('هل تريد حذف هذا الفرد؟');
+    if (!ok) return;
+    try {
+      setPersonSaving(true);
+      const res = await fetch('/api/individuals', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: personData.id }),
+      });
+      if (!res.ok) throw new Error('failed');
+      // إزالة من القائمة
+      if (inspectLeader?.children) {
+        const nextChildren = inspectLeader.children.filter((c) => Number(c.id) !== personData.id);
+        setInspectLeader({ ...inspectLeader, children: nextChildren });
+      }
+      setPersonOpen(false);
+    } catch (e) {
+      console.error('Delete failed', e);
+    } finally {
+      setPersonSaving(false);
+    }
   };
 
   if (!user) {
@@ -173,6 +288,7 @@ export default function LeadersTreePage() {
                       selectedNodeId={selectedNodeId}
                       onToggleExpansion={toggleExpansion}
                       onSelectNode={selectNode}
+                      onInspectLeader={openInspect}
                       level={0}
                     />
                   ))}
@@ -201,6 +317,177 @@ export default function LeadersTreePage() {
           </Card>
         </div>
       </main>
+
+      {/* Inspect Leader Modal */}
+      <Dialog open={inspectOpen} onOpenChange={setInspectOpen}>
+        <DialogContent className="max-w-2xl bg-card/90 border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-4 w-4" suppressHydrationWarning />
+              تفاصيل القائد
+            </DialogTitle>
+          </DialogHeader>
+
+          {!inspectLeader ? (
+            <div className="text-sm text-muted-foreground">لا توجد بيانات</div>
+          ) : (
+            <div className="space-y-6 max-h-[70vh] overflow-auto pr-1">
+              {/* Leader details */}
+              <NodeDetailsView node={inspectLeader} />
+
+              {/* Members list */}
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  قائمة الأعضاء
+                  <span className="text-xs text-muted-foreground">({inspectLeader.children?.length || 0})</span>
+                </h4>
+                {inspectLeader.children && inspectLeader.children.length > 0 ? (
+                  <div className="space-y-2">
+                    {inspectLeader.children.map((child) => (
+                      <div key={child.id} className="p-2 rounded-lg bg-card/40 border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-sky-400" />
+                            <span className="text-sm font-medium">{child.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              title="عرض التفاصيل"
+                              onClick={() => openPerson(child)}
+                              className="p-1 rounded hover:bg-card/60"
+                            >
+                              <Eye className="h-4 w-4" suppressHydrationWarning />
+                            </button>
+                          </div>
+                          {typeof child.votes === 'number' && (
+                            <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-0.5 rounded-full">أصوات: {child.votes}</span>
+                          )}
+                        </div>
+                        {/* child details if exist */}
+                        {child.details && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {child.details.phone && (
+                              <InfoItem label="الهاتف" value={child.details.phone} icon={<Phone className="h-4 w-4" />} />
+                            )}
+                            {child.details.residence && (
+                              <InfoItem label="السكن" value={child.details.residence} icon={<MapPin className="h-4 w-4" />} />
+                            )}
+                            {child.details.workplace && (
+                              <InfoItem label="مكان العمل" value={child.details.workplace} icon={<Building className="h-4 w-4" />} />
+                            )}
+                            {child.details.center_info && (
+                              <InfoItem label="المركز" value={child.details.center_info} />
+                            )}
+                            {child.details.station_number && (
+                              <InfoItem label="المحطة" value={child.details.station_number} />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">لا يوجد أعضاء</div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Person details/edit dialog */}
+      <Dialog open={personOpen} onOpenChange={setPersonOpen}>
+        <DialogContent className="max-w-xl bg-card/90 border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              تفاصيل الفرد
+            </DialogTitle>
+          </DialogHeader>
+          {personData ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">الاسم الكامل</Label>
+                  <Input
+                    value={personData.full_name}
+                    onChange={(e) => updatePersonField('full_name', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">اسم القائد</Label>
+                  <Input
+                    value={personData.leader_name ?? ''}
+                    onChange={(e) => updatePersonField('leader_name', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">الهاتف</Label>
+                  <Input
+                    value={personData.phone ?? ''}
+                    onChange={(e) => updatePersonField('phone', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">السكن</Label>
+                  <Input
+                    value={personData.residence ?? ''}
+                    onChange={(e) => updatePersonField('residence', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">مكان العمل</Label>
+                  <Input
+                    value={personData.workplace ?? ''}
+                    onChange={(e) => updatePersonField('workplace', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">معلومات المركز</Label>
+                  <Input
+                    value={personData.center_info ?? ''}
+                    onChange={(e) => updatePersonField('center_info', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">رقم المحطة</Label>
+                  <Input
+                    value={personData.station_number ?? ''}
+                    onChange={(e) => updatePersonField('station_number', e.target.value)}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">الأصوات</Label>
+                  <Input
+                    type="number"
+                    value={personData.votes_count}
+                    onChange={(e) => updatePersonField('votes_count', Number(e.target.value))}
+                    onBlur={autoSavePerson}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">حفظ تلقائي عند الخروج من الحقل</span>
+                <div className="flex items-center gap-2">
+                  <Button variant="destructive" onClick={deletePerson} disabled={personSaving}>
+                    حذف
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">لا توجد بيانات</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -212,6 +499,7 @@ function TreeNodeView({
   selectedNodeId,
   onToggleExpansion,
   onSelectNode,
+  onInspectLeader,
   level = 0
 }: {
   node: TreeNode;
@@ -219,6 +507,7 @@ function TreeNodeView({
   selectedNodeId: string | null;
   onToggleExpansion: (id: string) => void;
   onSelectNode: (node: TreeNode) => void;
+  onInspectLeader: (node: TreeNode) => void;
   level?: number;
 }) {
   const isExpanded = expanded[node.id];
@@ -265,12 +554,22 @@ function TreeNodeView({
           )}
           
           <span className="font-medium text-foreground">{node.label}</span>
+
+          {node.type === 'leader' && (
+            <button
+              title="عرض التفاصيل"
+              onClick={(e) => { e.stopPropagation(); onInspectLeader(node); }}
+              className="p-1 rounded hover:bg-card/60 transition-colors"
+            >
+              <Search className="h-4 w-4 text-muted-foreground" suppressHydrationWarning />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center space-x-2 space-x-reverse">
           {node.type === 'leader' && (
             <span className="text-xs bg-emerald-600/20 text-emerald-300 px-2 py-1 rounded-full">
-              إجمالي الأصوات: {node.totalVotes || 0}
+              إجمالي الأفراد: {node.children?.length || 0}
             </span>
           )}
           {node.votes !== undefined && (
@@ -292,6 +591,7 @@ function TreeNodeView({
               selectedNodeId={selectedNodeId}
               onToggleExpansion={onToggleExpansion}
               onSelectNode={onSelectNode}
+              onInspectLeader={onInspectLeader}
               level={level + 1}
             />
           ))}
@@ -357,8 +657,8 @@ function NodeDetailsView({ node }: { node: TreeNode }) {
         )}
       </div>
 
-      {/* Voting Info */}
-      {(node.votes !== undefined || node.totalVotes !== undefined) && (
+      {/* Voting Info + Members Total */}
+      {(node.votes !== undefined || (node.children && node.children.length > 0)) && (
         <div className="border-t border-border pt-4">
           <h4 className="text-sm font-medium text-foreground mb-3 flex items-center space-x-2 space-x-reverse">
             <Vote className="h-4 w-4" />
@@ -371,10 +671,10 @@ function NodeDetailsView({ node }: { node: TreeNode }) {
                 <span className="text-sm font-medium text-blue-300">{node.votes}</span>
               </div>
             )}
-            {node.totalVotes !== undefined && (
+            {node.children && (
               <div className="flex justify-between items-center p-2 bg-card/40 rounded-lg">
-                <span className="text-sm text-muted-foreground">إجمالي الأصوات</span>
-                <span className="text-sm font-medium text-emerald-300">{node.totalVotes}</span>
+                <span className="text-sm text-muted-foreground">إجمالي الأفراد</span>
+                <span className="text-sm font-medium text-emerald-300">{node.children.length}</span>
               </div>
             )}
           </div>

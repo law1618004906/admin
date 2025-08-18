@@ -71,6 +71,90 @@ function mapPerson(p: any): PersonPayload {
   };
 }
 
+// PATCH update individual by id - safe field whitelist
+export async function PATCH(request: NextRequest) {
+  return requireAuth(async (req, _user) => {
+    try {
+      const body = await req.json();
+      const idRaw = body?.id;
+      const id = Number(idRaw);
+      if (!Number.isFinite(id) || id <= 0) {
+        return NextResponse.json({ error: 'Valid id is required' }, { status: 400 });
+      }
+
+      // whitelist fields
+      const data: any = {};
+      const setIf = (key: string, val: any) => {
+        if (val === undefined) return;
+        if (typeof val === 'string') data[key] = val.trim();
+        else if (val === null) data[key] = null;
+        else data[key] = val;
+      };
+
+      setIf('leader_name', body.leader_name ?? undefined);
+      setIf('full_name', body.full_name ?? undefined);
+      setIf('residence', body.residence ?? undefined);
+      setIf('phone', body.phone ?? undefined);
+      setIf('workplace', body.workplace ?? undefined);
+      setIf('center_info', body.center_info ?? undefined);
+      setIf('station_number', body.station_number ?? undefined);
+      if (body.votes_count !== undefined) {
+        const votes = Number(body.votes_count);
+        data.votes_count = Number.isFinite(votes) ? votes : 0;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+      }
+
+      const updated = await db.persons.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          full_name: true,
+          leader_name: true,
+          residence: true,
+          phone: true,
+          workplace: true,
+          center_info: true,
+          station_number: true,
+          votes_count: true,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Person updated successfully',
+        data: mapPerson(updated),
+      });
+    } catch (error) {
+      console.error('Error updating individual:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  })(request);
+}
+
+// DELETE individual by id
+export async function DELETE(request: NextRequest) {
+  return requireAuth(async (req, _user) => {
+    try {
+      const body = await req.json();
+      const idRaw = body?.id;
+      const id = Number(idRaw);
+      if (!Number.isFinite(id) || id <= 0) {
+        return NextResponse.json({ error: 'Valid id is required' }, { status: 400 });
+      }
+
+      await db.persons.delete({ where: { id } });
+      return NextResponse.json({ success: true, message: 'Person deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting individual:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  })(request);
+}
+
 // GET all individuals - مع Keyset Pagination + فلاتر - Prisma
 export async function GET(request: NextRequest) {
   return requireAuth(async (req, _user) => {
@@ -129,25 +213,62 @@ export async function GET(request: NextRequest) {
 
       const q0 = Date.now();
       
-      // جلب إجمالي العدد أولاً
-      const totalCount = await db.persons.count({ where });
-      
-      const personsPlusOne = await db.persons.findMany({
-        where,
-        orderBy: [{ [sortBy]: sortDir }, { id: 'desc' }], // tie-break لضمان ترتيب ثابت
-        take: pageSize + 1,
-        select: {
-          id: true,
-          full_name: true,
-          leader_name: true,
-          residence: true,
-          phone: true,
-          workplace: true,
-          center_info: true,
-          station_number: true,
-          votes_count: true,
-        },
-      });
+      // عند وجود leaderName نستخدم TRIM في الاستعلام لتجنب عدم التطابق بسبب الفراغات
+      let totalCount: number;
+      let personsPlusOne: any[];
+      if (leaderName && sortBy === 'id') {
+        // العد باستخدام TRIM(leader_name)
+        const countRows = await db.$queryRawUnsafe<{ c: number }[]>(
+          `SELECT COUNT(*) as c FROM persons WHERE TRIM(leader_name) = TRIM(?)` ,
+          leaderName
+        );
+        totalCount = Number(countRows?.[0]?.c ?? 0);
+
+        // جلب الصفحة مع keyset عبر id
+        const params: any[] = [leaderName];
+        let whereId = '';
+        if (cursor && Number.isFinite(Number(cursor))) {
+          const cNum = Number(cursor);
+          // للاتجاه desc نستخدم id < cursor، ولـ asc نستخدم id > cursor
+          whereId = sortDir === 'desc' ? 'AND id < ?' : 'AND id > ?';
+          params.push(cNum);
+        }
+
+        // الترتيب
+        const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+        const rows = await db.$queryRawUnsafe<any[]>(
+          `
+            SELECT id, full_name, leader_name, residence, phone, workplace, center_info, station_number, votes_count
+            FROM persons
+            WHERE TRIM(leader_name) = TRIM(?)
+            ${whereId}
+            ORDER BY id ${orderDir}
+            LIMIT ?
+          `,
+          ...params,
+          pageSize + 1
+        );
+        personsPlusOne = rows;
+      } else {
+        // المسار الافتراضي ب Prisma
+        totalCount = await db.persons.count({ where });
+        personsPlusOne = await db.persons.findMany({
+          where,
+          orderBy: [{ [sortBy]: sortDir }, { id: 'desc' }], // tie-break لضمان ترتيب ثابت
+          take: pageSize + 1,
+          select: {
+            id: true,
+            full_name: true,
+            leader_name: true,
+            residence: true,
+            phone: true,
+            workplace: true,
+            center_info: true,
+            station_number: true,
+            votes_count: true,
+          },
+        });
+      }
       const q1 = Date.now();
 
       const hasNext = personsPlusOne.length > pageSize;

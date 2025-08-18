@@ -309,7 +309,7 @@ const LeadersPage = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-blue-600" />
+              <Users className="h-8 w-8 text-blue-600" suppressHydrationWarning />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.totalLeaders}</p>
                 <p className="text-muted-foreground">إجمالي القادة</p>
@@ -321,7 +321,7 @@ const LeadersPage = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <Vote className="h-8 w-8 text-green-600" />
+              <Vote className="h-8 w-8 text-green-600" suppressHydrationWarning />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.totalVotes}</p>
                 <p className="text-muted-foreground">أصوات القادة</p>
@@ -333,7 +333,7 @@ const LeadersPage = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <Users2 className="h-8 w-8 text-purple-600" />
+              <Users2 className="h-8 w-8 text-purple-600" suppressHydrationWarning />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.totalIndividuals}</p>
                 <p className="text-muted-foreground">إجمالي الأفراد</p>
@@ -345,7 +345,7 @@ const LeadersPage = () => {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <TrendingUp className="h-8 w-8 text-orange-600" suppressHydrationWarning />
               <div className="mr-4">
                 <p className="text-2xl font-bold">{stats.grandTotal}</p>
                 <p className="text-muted-foreground">المجموع الكلي</p>
@@ -361,7 +361,7 @@ const LeadersPage = () => {
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" suppressHydrationWarning />
               <Input
                 placeholder="البحث في الاسم، الهاتف، السكن، أو جهة العمل..."
                 value={searchTerm}
@@ -375,12 +375,12 @@ const LeadersPage = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
           <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 ml-2" />
+            <Plus className="h-4 w-4 ml-2" suppressHydrationWarning />
             إضافة قائد جديد
           </Button>
           
           <Button onClick={exportToCSV} variant="outline">
-            <FileDown className="h-4 w-4 ml-2" />
+            <FileDown className="h-4 w-4 ml-2" suppressHydrationWarning />
             تصدير CSV
           </Button>
 
@@ -391,9 +391,9 @@ const LeadersPage = () => {
           >
             ترتيب حسب الرقم
             {sortField === 'id' && (
-              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" suppressHydrationWarning /> : <SortDesc className="h-4 w-4" suppressHydrationWarning />
             )}
-            {sortField !== 'id' && <ArrowUpDown className="h-4 w-4" />}
+            {sortField !== 'id' && <ArrowUpDown className="h-4 w-4" suppressHydrationWarning />}
           </Button>
 
           <Button
@@ -403,9 +403,9 @@ const LeadersPage = () => {
           >
             ترتيب حسب الاسم
             {sortField === 'full_name' && (
-              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" suppressHydrationWarning /> : <SortDesc className="h-4 w-4" suppressHydrationWarning />
             )}
-            {sortField !== 'full_name' && <ArrowUpDown className="h-4 w-4" />}
+            {sortField !== 'full_name' && <ArrowUpDown className="h-4 w-4" suppressHydrationWarning />}
           </Button>
 
           <Button
@@ -415,9 +415,9 @@ const LeadersPage = () => {
           >
             ترتيب حسب الأصوات
             {sortField === 'votes_count' && (
-              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+              sortOrder === 'asc' ? <SortAsc className="h-4 w-4" suppressHydrationWarning /> : <SortDesc className="h-4 w-4" suppressHydrationWarning />
             )}
-            {sortField !== 'votes_count' && <ArrowUpDown className="h-4 w-4" />}
+            {sortField !== 'votes_count' && <ArrowUpDown className="h-4 w-4" suppressHydrationWarning />}
           </Button>
         </div>
       </div>

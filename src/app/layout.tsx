@@ -62,7 +62,7 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="lg">
                   <Link href="/" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-sidebar-accent">
-                    <Home className="h-5 w-5" />
+                    <Home className="h-5 w-5" suppressHydrationWarning />
                     <span>الرئيسية</span>
                   </Link>
                 </SidebarMenuButton>
@@ -71,7 +71,7 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="lg">
                   <Link href="/individuals" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-sidebar-accent">
-                    <Users className="h-5 w-5" />
+                    <Users className="h-5 w-5" suppressHydrationWarning />
                     <span>الأفراد</span>
                   </Link>
                 </SidebarMenuButton>
@@ -80,7 +80,7 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="lg">
                   <Link href="/leaders" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-sidebar-accent">
-                    <UserCircle className="h-5 w-5" />
+                    <UserCircle className="h-5 w-5" suppressHydrationWarning />
                     <span>القادة</span>
                   </Link>
                 </SidebarMenuButton>
@@ -89,7 +89,7 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="lg">
                   <Link href="/leaders-tree" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-sidebar-accent">
-                    <GitBranch className="h-5 w-5" />
+                    <GitBranch className="h-5 w-5" suppressHydrationWarning />
                     <span>شجرة القادة</span>
                   </Link>
                 </SidebarMenuButton>
@@ -98,7 +98,7 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="lg">
                   <Link href="/reports" className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-sidebar-accent">
-                    <BarChart3 className="h-5 w-5" />
+                    <BarChart3 className="h-5 w-5" suppressHydrationWarning />
                     <span>التقارير</span>
                   </Link>
                 </SidebarMenuButton>

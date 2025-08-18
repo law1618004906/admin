@@ -55,6 +55,8 @@ ensure-*
 # Database backups (keep only latest)
 backups/*.db.bak
 backups/*.sqlite.bak
+backups/*.tar.gz
+backup-electoral-system-*.tar.gz
 
 # Environment variables
 .env*.local
@@ -105,6 +107,9 @@ next-env.d.ts
 local-*
 .claude
 .z-ai-config
+# temp extract artifacts
+temp_extract/
+
 # logs and log files
 logs/*.log
 logs/app-*.log

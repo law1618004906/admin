@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter } from "next/navigation"
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { usePermissions } from "@/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Home, Search, Eye, EyeOff, Download, ChevronDown, ShieldAlert, Users, RefreshCw } from "lucide-react"
+import { Home, Search, Eye, EyeOff, Download, ChevronDown, ShieldAlert, Users, RefreshCw, Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 // أنواع البيانات
 interface LeaderOption {
@@ -24,10 +26,14 @@ interface Individual {
   full_name: string;
   address?: string;
   votes_count: number;
-  leader_name?: string;
-  station_number?: number;
+  leader_name?: string | null;
+  station_number?: string | null;
   created_at: string;
   updated_at: string;
+  phone?: string;
+  residence?: string;
+  workplace?: string;
+  center_info?: string;
 }
 
 interface IndividualsPageResp {
@@ -151,6 +157,7 @@ export default function IndividualsPage() {
   const router = useRouter();
   const { loading, isAuthenticated } = useAuth();
   const { has, loading: permsLoading } = usePermissions();
+  const queryClient = useQueryClient();
   
   // حالات البحث والفلترة
   const [q, setQ] = React.useState<string>("");
@@ -161,6 +168,71 @@ export default function IndividualsPage() {
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
   const [showDebug, setShowDebug] = React.useState(false);
   const [leadersQ, setLeadersQ] = React.useState<string>("");
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [selected, setSelected] = React.useState<Individual | null>(null);
+
+  const openDetails = React.useCallback((person: Individual) => {
+    setSelected(person);
+    setDetailsOpen(true);
+  }, []);
+
+  const closeDetails = React.useCallback(() => {
+    setDetailsOpen(false);
+    setSelected(null);
+  }, []);
+
+  const updateCacheWith = React.useCallback((updated: Partial<Individual> & { id: number }) => {
+    queryClient.setQueryData<any>(['individuals', { q, leaderName, stationNumber, pageSize, sortBy, sortDir }], (oldData: any) => {
+      if (!oldData) return oldData;
+      const newPages = (oldData.pages || []).map((page: any) => ({
+        ...page,
+        data: (page.data || []).map((p: Individual) => (p.id === updated.id ? { ...p, ...updated } : p))
+      }));
+      return { ...oldData, pages: newPages };
+    });
+  }, [queryClient, q, leaderName, stationNumber, pageSize, sortBy, sortDir]);
+
+  const patchField = React.useCallback(async (id: number, key: keyof Omit<Individual, 'id' | 'created_at' | 'updated_at'>, value: any) => {
+    try {
+      const res = await fetch('/api/individuals', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, [key]: value })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const updated: Individual = json.data;
+      updateCacheWith(updated);
+      setSelected((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+    } catch (e) {
+      console.error('فشل التحديث:', e);
+    }
+  }, [updateCacheWith]);
+
+  const deletePerson = React.useCallback(async (id: number) => {
+    try {
+      const res = await fetch('/api/individuals', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      // تحديث الكاش بإزالة الفرد
+      queryClient.setQueryData<any>(['individuals', { q, leaderName, stationNumber, pageSize, sortBy, sortDir }], (oldData: any) => {
+        if (!oldData) return oldData;
+        const newPages = (oldData.pages || []).map((page: any) => ({
+          ...page,
+          data: (page.data || []).filter((p: Individual) => p.id !== id)
+        }));
+        return { ...oldData, pages: newPages };
+      });
+      closeDetails();
+    } catch (e) {
+      console.error('فشل الحذف:', e);
+    }
+  }, [queryClient, q, leaderName, stationNumber, pageSize, sortBy, sortDir, closeDetails]);
 
   // جلب القادة hooks
   type LeadersResp = { data: LeaderOption[]; nextCursor?: string | null; hasNext?: boolean };
@@ -336,12 +408,12 @@ export default function IndividualsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
-              <ShieldAlert className="h-5 w-5" /> غير مصرح لك
+              <ShieldAlert className="h-5 w-5" suppressHydrationWarning /> غير مصرح لك
             </CardTitle>
             <CardDescription>لا تملك صلاحية عرض هذه الصفحة (individuals.read).</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push('/')}>العودة للرئيسية <Home className="h-4 w-4 mr-2" /></Button>
+            <Button onClick={() => router.push('/')}>العودة للرئيسية <Home className="h-4 w-4 mr-2" suppressHydrationWarning /></Button>
           </CardContent>
         </Card>
       </div>
@@ -357,7 +429,7 @@ export default function IndividualsPage() {
       <Card className="bg-card/60 border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+            <Users className="h-5 w-5" suppressHydrationWarning />
             إدارة الأفراد
             {totalCount > 0 && (
               <Badge variant="secondary" className="mr-2">
@@ -375,7 +447,7 @@ export default function IndividualsPage() {
             <div className="space-y-2">
               <Label htmlFor="search">البحث في الأسماء</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" suppressHydrationWarning />
                 <Input
                   id="search"
                   placeholder="اكتب اسم الشخص..."
@@ -464,7 +536,7 @@ export default function IndividualsPage() {
               disabled={isBusy}
               className="mt-6"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isBusy ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 mr-2 ${isBusy ? 'animate-spin' : ''}`} suppressHydrationWarning />
               تحديث
             </Button>
 
@@ -473,7 +545,7 @@ export default function IndividualsPage() {
               onClick={() => setShowDebug(!showDebug)}
               className="mt-6"
             >
-              {showDebug ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {showDebug ? <EyeOff className="h-4 w-4 mr-2" suppressHydrationWarning /> : <Eye className="h-4 w-4 mr-2" suppressHydrationWarning />}
               {showDebug ? 'إخفاء' : 'عرض'} التفاصيل
             </Button>
           </div>
@@ -528,13 +600,16 @@ export default function IndividualsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-left">
-                      <Badge variant="secondary">
-                        {individual.votes_count.toLocaleString('ar-EG')} صوت
-                      </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        #{individual.id}
-                      </p>
+                    <div className="text-left flex items-start gap-2">
+                      <div className="text-left">
+                        <Badge variant="secondary">
+                          {individual.votes_count.toLocaleString('ar-EG')} صوت
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">#{individual.id}</p>
+                      </div>
+                      <Button variant="outline" size="sm" className="ml-2" onClick={() => openDetails(individual)}>
+                        <Eye className="h-4 w-4 mr-1" /> تفاصيل
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -567,6 +642,106 @@ export default function IndividualsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* نافذة تفاصيل الفرد + تعديل */}
+      <Dialog open={detailsOpen} onOpenChange={(o) => (o ? setDetailsOpen(true) : closeDetails())}>
+        <DialogContent className="sm:max-w-[640px]">
+          <DialogHeader>
+            <DialogTitle>تفاصيل الفرد</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>الاسم الكامل</Label>
+                <Input
+                  defaultValue={selected.full_name ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'full_name', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>اسم القائد</Label>
+                <Input
+                  defaultValue={selected.leader_name ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'leader_name' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>الهاتف</Label>
+                <Input
+                  defaultValue={selected.phone ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'phone' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>السكن</Label>
+                <Input
+                  defaultValue={selected.residence ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'residence' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>العمل</Label>
+                <Input
+                  defaultValue={selected.workplace ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'workplace' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>المركز</Label>
+                <Input
+                  defaultValue={selected.center_info ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'center_info' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>رقم المحطة</Label>
+                <Input
+                  defaultValue={selected.station_number ?? ''}
+                  onBlur={(e) => patchField(selected.id, 'station_number' as any, e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>عدد الأصوات</Label>
+                <Input
+                  type="number"
+                  defaultValue={selected.votes_count ?? 0}
+                  onBlur={(e) => patchField(selected.id, 'votes_count' as any, Number(e.target.value))}
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
+                      <Trash2 className="h-4 w-4 mr-1" /> حذف هذا الفرد
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        سيتم حذف هذا الفرد بشكل نهائي. هل أنت متأكد؟
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deletePerson(selected.id)} className="bg-red-600 hover:bg-red-700">
+                        حذف
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="justify-between mt-4">
+            <div className="text-xs text-muted-foreground">سيتم الحفظ تلقائياً عند الخروج من الحقل</div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={closeDetails}>إغلاق</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default function TopBar() {
   return (
     <div className="flex items-center justify-between p-4 bg-card/60 border-border shadow-sm border-b">
       <div className="flex items-center gap-3">
-        <User className="h-5 w-5 text-muted-foreground" />
+        <User className="h-5 w-5 text-muted-foreground" suppressHydrationWarning />
         <span className="text-sm font-medium text-foreground">
           مرحباً، {user.name || user.username}
         </span>
@@ -29,7 +29,7 @@ export default function TopBar() {
         onClick={handleLogout}
         className="flex items-center gap-2 border-border"
       >
-        <LogOut className="h-4 w-4" />
+        <LogOut className="h-4 w-4" suppressHydrationWarning />
         تسجيل الخروج
       </Button>
     </div>

@@ -15,7 +15,7 @@ export default function GlobalError({
       <div className="w-full max-w-md card-fallback p-6 rounded-xl">
         <div className="flex items-start gap-3">
           <div className="shrink-0 rounded-full bg-destructive/15 p-2 text-destructive">
-            <AlertTriangle className="h-5 w-5" />
+            <AlertTriangle className="h-5 w-5" suppressHydrationWarning />
           </div>
           <div className="space-y-1">
             <h1 className="text-lg font-semibold">حدث خطأ غير متوقع</h1>
@@ -27,7 +27,7 @@ export default function GlobalError({
             )}
             <div className="pt-3">
               <Button onClick={() => reset()} className="gap-2">
-                <RotateCcw className="h-4 w-4" /> إعادة المحاولة
+                <RotateCcw className="h-4 w-4" suppressHydrationWarning /> إعادة المحاولة
               </Button>
             </div>
           </div>

@@ -70,50 +70,68 @@ export async function GET(request: NextRequest) {
       const leaders = await prisma.leaders.findMany({
         orderBy: { id: 'desc' },
       });
-      const leaderNames = leaders.map((l) => l.full_name);
-      
-      // بعد جلب القادة احسب الت.population واستطّعها قبل بناء الـ payload
-      const aggregates = await prisma.persons.groupBy({
-        by: ['leader_name'],
-        where: {
-          leader_name: {
-            in: leaders.map((l) => l.full_name),
-          },
-        },
-        _count: { _all: true },
-        _sum: { votes_count: true },
-      });
-      const aggregatesNormalized = aggregates.map((a) => ({
-        leader_name: a.leader_name,
-        cnt: a._count?._all ?? 0,
-        sum_votes: a._sum?.votes_count ?? 0,
-      }));
+
+      // أسماء القادة مُطبَّعة (إزالة المسافات الزائدة)
+      const normalizedNames = Array.from(
+        new Set(leaders.map((l) => (l.full_name ?? '').trim()))
+      ).filter((n) => n.length > 0);
+
+      // احسب التجميع باستخدام TRIM(leader_name) لتفادي عدم التطابق بسبب الفراغات
+      let aggregatesNormalized: { leader_name: string; cnt: number; sum_votes: number }[] = [];
+      if (normalizedNames.length > 0) {
+        const placeholders = normalizedNames.map(() => '?').join(',');
+        const rows = await prisma.$queryRawUnsafe<
+          { norm_name: string; cnt: number; sum_votes: number }[]
+        >(
+          `
+          SELECT TRIM(leader_name) AS norm_name,
+                 COUNT(*) AS cnt,
+                 COALESCE(SUM(votes_count), 0) AS sum_votes
+          FROM persons
+          WHERE TRIM(leader_name) IN (${placeholders})
+          GROUP BY TRIM(leader_name)
+        `,
+          ...normalizedNames
+        );
+        aggregatesNormalized = rows.map((r) => ({
+          leader_name: r.norm_name,
+          cnt: Number(r.cnt ?? 0),
+          sum_votes: Number(r.sum_votes ?? 0),
+        }));
+      }
 
       // individualsPreview: نستعلم أول 5 أفراد لكل قائد (id DESC) باستعلامات صغيرة منفصلة
       const previewsByLeader: Record<string, any[]> = {};
       for (const leader of leaders) {
-        const personsPreview = await prisma.persons.findMany({
-          where: { leader_name: leader.full_name },
-          select: {
-            leader_name: true,
-            full_name: true,
-            residence: true,
-            phone: true,
-            workplace: true,
-            center_info: true,
-            station_number: true,
-            votes_count: true,
-          },
-          orderBy: { id: 'desc' },
-          take: 5,
-        });
-        previewsByLeader[leader.full_name] = personsPreview;
+        const personsPreview = await prisma.$queryRawUnsafe<
+          {
+            leader_name: string;
+            full_name: string;
+            residence: string | null;
+            phone: string | null;
+            workplace: string | null;
+            center_info: string | null;
+            station_number: string | null;
+            votes_count: number | null;
+          }[]
+        >(
+          `
+          SELECT leader_name, full_name, residence, phone, workplace, center_info, station_number, votes_count
+          FROM persons
+          WHERE TRIM(leader_name) = TRIM(?)
+          ORDER BY id DESC
+          LIMIT 5
+        `,
+          leader.full_name ?? ''
+        );
+        previewsByLeader[leader.full_name] = personsPreview as any[];
       }
       // individualsPreview السابق كان يجلب full_name فقط لكل قائد بحد 5
       // سنقوم الآن بجلب جميع الحقول الثمانية للأفراد لكل قائد بحد 5 وبترتيب الأحدث
       // when building the response, instead of individualsPreview: string[] im using the full arrays
       const payload = leaders.map((l) => {
-        const agg = aggregatesNormalized.find((a) => a.leader_name === l.full_name);
+        const norm = (l.full_name ?? '').trim();
+        const agg = aggregatesNormalized.find((a) => a.leader_name === norm);
         return {
           id: l.id,
           full_name: l.full_name,
@@ -123,8 +141,8 @@ export async function GET(request: NextRequest) {
           center_info: l.center_info,
           station_number: l.station_number,
           votes_count: Number(l.votes_count ?? 0),
-          counts: Number(agg?.cnt ?? 0),
-          sum_votes: Number(agg?.sum_votes ?? 0),
+          _count: { individuals: Number(agg?.cnt ?? 0) },
+          totalIndividualsVotes: Number(agg?.sum_votes ?? 0),
           individualsPreview: (previewsByLeader[l.full_name] ?? []).map((p) => ({
             leader_name: p.leader_name,
             full_name: p.full_name,

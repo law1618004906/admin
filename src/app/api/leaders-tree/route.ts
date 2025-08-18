@@ -64,15 +64,15 @@ export async function GET(request: NextRequest) {
           SELECT id, full_name, votes_count, residence, phone, workplace,
                  center_info, station_number, created_at, updated_at
           FROM persons
-          WHERE leader_name = ?
+          WHERE TRIM(leader_name) = TRIM(?)
           ORDER BY id DESC
           `,
-          l.full_name
+          l.full_name ?? ''
         );
 
         const children: TreeNode[] = persons.map(p => ({
           id: String(p.id),
-          label: p.full_name,
+          label: (p.full_name ?? '').trim(),
           type: 'person',
           votes: p.votes_count ?? 0,
           details: {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
         tree.push({
           id: String(l.id),
-          label: l.full_name,
+          label: (l.full_name ?? '').trim(),
           type: 'leader',
           votes: l.votes_count ?? 0,
           totalVotes,
