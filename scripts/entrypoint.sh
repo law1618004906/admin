@@ -1,22 +1,45 @@
 #!/usr/bin/env sh
 set -e
 
-# Ensure prisma data directory exists
-mkdir -p /app/prisma-data
+# Detect Azure Web App container environment
+IS_AZURE="false"
+if [ -d "/home/site/wwwroot" ] || [ -n "$WEBSITE_SITE_NAME" ]; then
+  IS_AZURE="true"
+fi
 
-# Default DATABASE_URL if not provided - always use persistent directory
-: "${DATABASE_URL:=file:/app/prisma-data/production.db}"
+# Decide persistent DB path
+if [ "$IS_AZURE" = "true" ]; then
+  PERSIST_DIR="/home/site/wwwroot/prisma-data"
+else
+  PERSIST_DIR="/app/prisma-data"
+fi
+
+mkdir -p "$PERSIST_DIR"
+
+# Default DATABASE_URL if not provided
+: "${DATABASE_URL:=file:$PERSIST_DIR/production.db}"
 export DATABASE_URL
 
-# Show environment info (redacted)
 echo "[entrypoint] NODE_ENV=$NODE_ENV PORT=$PORT"
 echo "[entrypoint] Using DATABASE_URL=$DATABASE_URL"
+
+# If DB file missing on first run and a baked-in DB exists, copy it
+BAKED_DB="/app/prisma-data/production.db"
+TARGET_DB="$PERSIST_DIR/production.db"
+if [ ! -f "$TARGET_DB" ] || [ ! -s "$TARGET_DB" ]; then
+  if [ -f "$BAKED_DB" ] && [ -s "$BAKED_DB" ]; then
+    echo "[entrypoint] Seeding persistent DB from baked image copy..."
+    cp -f "$BAKED_DB" "$TARGET_DB"
+  else
+    echo "[entrypoint] No baked DB found; will create schema on first run."
+  fi
+fi
 
 # Generate Prisma client (idempotent)
 echo "[entrypoint] Generating Prisma client..."
 npx prisma generate
 
-# Apply database schema
+# Apply database schema (no destructive seeds here)
 if [ -d "/app/prisma/migrations" ] && [ "$(ls -A /app/prisma/migrations | wc -l)" -gt 0 ]; then
   echo "[entrypoint] Running prisma migrate deploy"
   npx prisma migrate deploy || echo "[entrypoint] Migration failed, continuing..."
@@ -25,30 +48,5 @@ else
   npx prisma db push || echo "[entrypoint] DB push failed, continuing..."
 fi
 
-# Check if database exists and has data before seeding
-DB_FILE="/app/prisma-data/production.db"
-if [ ! -f "$DB_FILE" ] || [ ! -s "$DB_FILE" ]; then
-  echo "[entrypoint] Database file doesn't exist or is empty, running seed..."
-  npx tsx prisma/seed.ts || echo "[entrypoint] Seed failed, continuing..."
-else
-  echo "[entrypoint] Database exists, checking if admin user exists..."
-  # Try to query for admin user - if fails, run seed
-  if ! npx tsx -e "
-    import { PrismaClient } from '@prisma/client';
-    const prisma = new PrismaClient();
-    prisma.user.findFirst({ where: { email: 'admin@hamidawi.com' } }).then(user => {
-      if (!user) process.exit(1);
-      console.log('Admin user exists');
-      process.exit(0);
-    }).catch(() => process.exit(1));
-  " 2>/dev/null; then
-    echo "[entrypoint] Admin user not found, running seed..."
-    npx tsx prisma/seed.ts || echo "[entrypoint] Seed failed, continuing..."
-  else
-    echo "[entrypoint] Admin user exists, skipping seed"
-  fi
-fi
-
 echo "[entrypoint] Starting the server..."
-# Start the server
 exec npm run start

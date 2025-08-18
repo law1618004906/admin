@@ -46,6 +46,9 @@ COPY --from=builder /app/server.prod.cjs ./server.prod.cjs
 # Prisma schema (for migrate deploy) and generated client
 COPY --from=builder /app/prisma ./prisma
 
+# Baked-in prisma-data (optional) used by entrypoint to seed persistent storage on first run
+COPY --from=builder /app/prisma-data ./prisma-data
+
 # Copy entrypoint script
 COPY scripts/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
